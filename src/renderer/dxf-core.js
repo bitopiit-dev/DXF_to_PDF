@@ -548,7 +548,7 @@ const DXF = (() => {
 
   function toPDF(P, jsPDF, title) {
     const doc = new jsPDF({ orientation: P.pw > P.ph ? 'landscape' : 'portrait', unit: 'mm', format: [Math.min(P.pw, P.ph), Math.max(P.pw, P.ph)], compress: true, floatPrecision: 4 });
-    doc.setProperties({ title: title || 'Drawing', creator: 'DXF to PDF' });
+    doc.setProperties({ title: title || 'Drawing', creator: 'DXF to PDF by K/Arifur Rahman' });
     doc.setLineCap('round'); doc.setLineJoin('round');
     const mv = q => doc.moveTo(P.X(q[0]), P.Y(q[1])), ln = q => doc.lineTo(P.X(q[0]), P.Y(q[1]));
     for (const p of P.prims) {

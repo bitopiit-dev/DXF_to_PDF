@@ -50,6 +50,10 @@ Pushing a tag such as `v1.0.0` makes GitHub Actions build Windows, Linux and mac
 
 Windows-এ `DXF-to-PDF-...-portable.exe` ইনস্টল ছাড়াই চলে। অ্যাপ খুলে DXF ফাইল টেনে ছেড়ে দিন, PDF নিজে থেকেই খুলে যাবে। PDF পুরোটা ভেক্টর, তাই জুম বা প্রিন্টে মান কমে না। লাইন ওয়েট, লাইন টাইপ, হ্যাচ, ব্লক, ডাইমেনশন সব থাকে। ড্রয়িংয়ের বাংলা লেখা এখনো "?" দেখায়।
 
+## Copyright
+
+Copyright © 2026 K/Arifur Rahman. All rights reserved. See [LICENSE](LICENSE).
+
 ## Credits
 
 Barlow and Barlow Condensed fonts by Jeremy Tribby, SIL Open Font License (`src/renderer/fonts/OFL.txt`). PDF output by [jsPDF](https://github.com/parallax/jsPDF) (MIT).

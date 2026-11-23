@@ -1,8 +1,10 @@
 {
   "name": "dxf-to-pdf",
   "productName": "DXF to PDF",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Convert DXF drawings to vector PDF and open them in one step.",
+  "author": "K/Arifur Rahman",
+  "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://github.com/bitopiit-dev/DXF_to_PDF#readme",
   "repository": {
     "type": "git",
@@ -38,7 +40,8 @@
     "files": [
       "src/**/*",
       "assets/icon/icon.png",
-      "package.json"
+      "package.json",
+      "LICENSE"
     ],
     "fileAssociations": [
       {
@@ -78,6 +81,7 @@
         "dmg"
       ],
       "artifactName": "DXF-to-PDF-${version}.dmg"
-    }
+    },
+    "copyright": "Copyright © 2026 K/Arifur Rahman"
   }
 }

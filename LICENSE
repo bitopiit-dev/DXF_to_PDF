@@ -1,0 +1,20 @@
+Copyright (c) 2026 K/Arifur Rahman. All rights reserved.
+
+DXF to PDF, including its source code, user interface, icon and
+documentation, is the work of K/Arifur Rahman.
+
+No part of this software may be copied, modified, distributed,
+sublicensed or sold without prior written permission from the
+copyright holder, except as allowed by applicable law. Viewing the
+source code in this repository does not grant a license to use it.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE
+FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE SOFTWARE
+OR ITS USE.
+
+Third-party components keep their own licenses:
+- jsPDF, MIT License (https://github.com/parallax/jsPDF)
+- Barlow and Barlow Condensed fonts by Jeremy Tribby,
+  SIL Open Font License 1.1 (src/renderer/fonts/OFL.txt)
+- Electron, MIT License (https://github.com/electron/electron)

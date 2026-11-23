@@ -67,6 +67,7 @@ function buildMenu() {
       ],
     },
     { role: 'viewMenu' },
+    { role: 'help', submenu: [{ label: 'About DXF to PDF', click: () => app.showAboutPanel() }] },
   ]));
 }
 
@@ -80,6 +81,13 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.on('open-file', (e, filePath) => { e.preventDefault(); sendFile(filePath); }); // macOS
+
+  app.setAboutPanelOptions({
+    applicationName: 'DXF to PDF',
+    applicationVersion: app.getVersion(),
+    copyright: 'Copyright © 2026 K/Arifur Rahman. All rights reserved.',
+    credits: 'Made by K/Arifur Rahman',
+  });
 
   app.whenReady().then(() => {
     buildMenu();
