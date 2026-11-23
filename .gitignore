@@ -1,0 +1,18 @@
+# dependencies and build output
+node_modules/
+dist/
+out/
+
+# logs and temp
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# secrets (none are used, kept per org policy)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json

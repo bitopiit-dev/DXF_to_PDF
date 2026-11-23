@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="tile"><rect x="64" y="64" width="896" height="896" rx="200"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1F4466"/><stop offset="1" stop-color="#132A40"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <g clip-path="url(#tile)" stroke="#2A5378" stroke-width="4">
+    <path d="M128 64V960M192 64V960M256 64V960M320 64V960M384 64V960M448 64V960M512 64V960M576 64V960M640 64V960M704 64V960M768 64V960M832 64V960M896 64V960"/>
+    <path d="M64 128H960M64 192H960M64 256H960M64 320H960M64 384H960M64 448H960M64 512H960M64 576H960M64 640H960M64 704H960M64 768H960M64 832H960M64 896H960"/>
+  </g>
+  <!-- drawing sheet -->
+  <path d="M250 150H646L790 294V880H250Z" fill="#F7FAFC"/>
+  <path d="M646 150V294H790Z" fill="#BCCCD9"/>
+  <!-- CAD part: flange with centre lines -->
+  <g fill="none" stroke="#0B7FA3" stroke-linecap="round">
+    <path d="M342 452H698M520 274V630" stroke-width="12" stroke-dasharray="70 22 10 22"/>
+    <circle cx="520" cy="452" r="150" stroke-width="28"/>
+    <circle cx="520" cy="452" r="52" stroke-width="22"/>
+    <circle cx="446" cy="378" r="17" stroke-width="13"/>
+    <circle cx="594" cy="378" r="17" stroke-width="13"/>
+    <circle cx="594" cy="526" r="17" stroke-width="13"/>
+    <circle cx="446" cy="526" r="17" stroke-width="13"/>
+  </g>
+  <!-- PDF tag -->
+  <rect x="176" y="690" width="500" height="156" rx="26" fill="#E5322D"/>
+  <path d="M176 846L250 846L250 900Z" fill="#9E1E1A"/>
+  <text x="426" y="808" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-weight="700" font-size="118" letter-spacing="6" fill="#FFFFFF">PDF</text>
+</svg>

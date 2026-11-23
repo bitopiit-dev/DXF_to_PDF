@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DXF to PDF</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DXF to PDF</h1>
+    <p>Drop any CAD drawing and it turns into a print-ready PDF right away. Everything runs on this computer.</p>
+  </header>
+
+  <div class="sheet" id="sheet">
+    <div class="zones" id="zones" aria-hidden="true"></div>
+    <div class="frame">
+      <div class="drop" id="drop" role="button" tabindex="0" aria-label="Choose a DXF file">
+        <svg viewBox="0 0 88 88" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="14" y="10" width="60" height="68"/><path d="M14 60h60M48 60v18"/><circle cx="36" cy="34" r="12"/><path d="M22 34h28M36 20v28"/>
+        </svg>
+        <h2>Drop a .dxf file here</h2>
+        <p>or</p>
+        <button class="btn primary" id="pick" type="button">Choose file</button>
+        <label class="auto" id="autoLabel"><input type="checkbox" id="autoOpen" checked> Open the PDF as soon as it is ready</label>
+        <p id="dropErr" class="err-box" role="alert"></p>
+      </div>
+
+      <div class="viewer">
+        <div class="tools">
+          <label>Page size
+            <select id="size"><option>A4</option><option selected>A3</option><option>A2</option><option>A1</option><option>A0</option><option>Letter</option><option>Tabloid</option></select>
+          </label>
+          <label>Orientation
+            <select id="orient"><option value="auto">Auto</option><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select>
+          </label>
+          <label>Lines
+            <select id="ink"><option value="color">Drawing colors</option><option value="black">All black</option></select>
+          </label>
+          <span class="grow"></span>
+          <div class="zoom" role="group" aria-label="Zoom">
+            <button type="button" id="zout" aria-label="Zoom out">−</button>
+            <button type="button" id="zfit">Fit</button>
+            <button type="button" id="zin" aria-label="Zoom in">+</button>
+          </div>
+          <button class="btn primary" id="open" type="button">Open PDF</button>
+          <button class="btn" id="save" type="button">Save PDF…</button>
+          <button class="btn" id="another" type="button">New file</button>
+        </div>
+        <div class="stage" id="stage"><div class="paper" id="paper"></div></div>
+        <details id="layerBox"><summary>Layers</summary><div class="layers" id="layers"></div></details>
+        <div class="bottom">
+          <div class="notes" id="notes"></div>
+        </div>
+      </div>
+
+      <div class="tb" id="tb">
+        <div class="k">File</div><div class="v" id="tFile">—</div>
+        <div class="k">Sheet</div><div class="v" id="tSheet">—</div>
+        <div class="k">Objects</div><div class="v" id="tObj">—</div>
+        <div class="k">Status</div><div class="v" id="tStatus">Waiting for a drawing</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../node_modules/jspdf/dist/jspdf.umd.min.js"></script>
+<script src="dxf-core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+{
+  "name": "dxf-to-pdf",
+  "productName": "DXF to PDF",
+  "version": "1.0.0",
+  "description": "Convert DXF drawings to vector PDF and open them in one step.",
+  "main": "src/main/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/core.test.js",
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never",
+    "dist:mac": "electron-builder --mac --publish never"
+  },
+  "dependencies": {
+    "jspdf": "2.5.1"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.dxftopdf.app",
+    "productName": "DXF to PDF",
+    "directories": {
+      "buildResources": "assets/icon",
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/icon/icon.png",
+      "package.json"
+    ],
+    "fileAssociations": [
+      { "ext": "dxf", "name": "DXF drawing", "description": "DXF drawing", "role": "Viewer" }
+    ],
+    "win": {
+      "icon": "assets/icon/icon.ico",
+      "target": ["portable", "nsis"]
+    },
+    "portable": {
+      "artifactName": "DXF-to-PDF-${version}-portable.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "DXF-to-PDF-${version}-setup.exe"
+    },
+    "linux": {
+      "icon": "assets/icon",
+      "category": "Graphics",
+      "target": ["AppImage"],
+      "artifactName": "DXF-to-PDF-${version}.AppImage"
+    },
+    "mac": {
+      "icon": "assets/icon/icon.icns",
+      "category": "public.app-category.graphics-design",
+      "target": ["dmg"],
+      "artifactName": "DXF-to-PDF-${version}.dmg"
+    }
+  }
+}

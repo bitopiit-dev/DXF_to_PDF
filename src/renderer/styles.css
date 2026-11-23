@@ -1,0 +1,87 @@
+@font-face{font-family:"Barlow";src:url("fonts/Barlow-Regular.ttf") format("truetype");font-weight:400}
+@font-face{font-family:"Barlow";src:url("fonts/Barlow-Medium.ttf") format("truetype");font-weight:500}
+@font-face{font-family:"Barlow";src:url("fonts/Barlow-SemiBold.ttf") format("truetype");font-weight:600}
+@font-face{font-family:"Barlow Condensed";src:url("fonts/BarlowCondensed-Medium.ttf") format("truetype");font-weight:500}
+@font-face{font-family:"Barlow Condensed";src:url("fonts/BarlowCondensed-SemiBold.ttf") format("truetype");font-weight:600}
+@font-face{font-family:"Barlow Condensed";src:url("fonts/BarlowCondensed-Bold.ttf") format("truetype");font-weight:700}
+
+:root{
+  --bg:#e6ebee; --sheet:#fafbfb; --ink:#1b3247; --rule:#a9b8c4; --soft:#d5dde3;
+  --accent:#0b7fa3; --accent-ink:#ffffff; --muted:#5a6b79; --warn:#b3261e;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10161c; --sheet:#17212a; --ink:#d7e1e9; --rule:#3b4c5c; --soft:#25323e;
+    --accent:#5cc2e2; --accent-ink:#0c1a22; --muted:#8d9daa; --warn:#ff8a80; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10161c; --sheet:#17212a; --ink:#d7e1e9; --rule:#3b4c5c; --soft:#25323e;
+  --accent:#5cc2e2; --accent-ink:#0c1a22; --muted:#8d9daa; --warn:#ff8a80; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Barlow",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 20px 48px}
+header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+h1{font:700 clamp(34px,6vw,56px)/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:-.01em;margin:0}
+header p{margin:0;color:var(--muted);max-width:52ch}
+
+/* drawing sheet frame with reference zones */
+.sheet{position:relative;background:var(--sheet);border:1px solid var(--rule);padding:22px}
+.zones{position:absolute;inset:0;pointer-events:none;font:600 11px/1 "Barlow Condensed",sans-serif;color:var(--muted)}
+.zones span{position:absolute}
+.frame{position:relative;border:2px solid var(--ink);min-height:420px;display:flex;flex-direction:column}
+
+.drop{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:48px 20px 150px;text-align:center;cursor:pointer;transition:background .15s}
+.drop.over{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.drop svg{width:88px;height:88px;color:var(--accent)}
+.drop h2{font:600 28px/1.1 "Barlow Condensed",sans-serif;margin:0}
+.drop p{margin:0;color:var(--muted)}
+.btn{font:600 16px/1 "Barlow",sans-serif;border:2px solid var(--ink);background:transparent;color:var(--ink);padding:11px 18px;cursor:pointer;border-radius:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:focus-visible,select:focus-visible,input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
+.btn:disabled{opacity:.45;cursor:default}
+
+/* title block */
+.tb{position:absolute;right:-2px;bottom:-2px;border:2px solid var(--ink);background:var(--sheet);display:grid;grid-template-columns:auto 1fr;min-width:min(320px,100%);font-size:14px}
+.tb div{padding:5px 10px;border-top:1px solid var(--rule);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb .k{font:500 13px/1.6 "Barlow Condensed",sans-serif;color:var(--muted);border-right:1px solid var(--rule)}
+.tb .k:first-child,.tb .k:first-child+div{border-top:0}
+.tb .v{font-weight:500;max-width:240px}
+.tb .v.ok{color:var(--accent)} .tb .v.err{color:var(--warn)}
+
+/* viewer */
+.viewer{display:none;flex:1;flex-direction:column}
+.loaded .drop{display:none} .loaded .viewer{display:flex}
+.loaded .tb{position:static;border:0;border-top:2px solid var(--ink);margin-left:auto}
+.tools{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end;padding:12px;border-bottom:1px solid var(--rule)}
+.tools label{display:flex;flex-direction:column;gap:3px;font:500 13px/1 "Barlow Condensed",sans-serif;color:var(--muted)}
+select{font:500 15px "Barlow",sans-serif;color:var(--ink);background:var(--sheet);border:1px solid var(--rule);padding:8px 10px;border-radius:2px;min-width:110px}
+.tools .grow{flex:1}
+.zoom{display:flex;border:1px solid var(--rule)}
+.zoom button{font:600 16px "Barlow",sans-serif;background:transparent;border:0;color:var(--ink);padding:8px 12px;cursor:pointer;min-width:40px}
+.zoom button+button{border-left:1px solid var(--rule)}
+.stage{flex:1;overflow:auto;background:var(--soft);padding:20px;min-height:360px;max-height:calc(100vh - 390px)}
+.paper{margin:0 auto;box-shadow:0 1px 0 var(--rule),0 6px 18px rgba(20,40,60,.18);background:#fff;line-height:0}
+.paper svg{width:100%;height:auto;display:block}
+.bottom{display:flex;flex-wrap:wrap;align-items:stretch}
+.notes{flex:1;min-width:240px;padding:12px 14px;font-size:14px;color:var(--muted)}
+.notes p{margin:0 0 6px}
+details{border-top:1px solid var(--rule)}
+summary{cursor:pointer;padding:10px 14px;font:600 16px "Barlow Condensed",sans-serif}
+.layers{display:flex;flex-wrap:wrap;gap:6px 18px;padding:4px 14px 14px}
+.layers label{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.layers i{width:12px;height:12px;border:1px solid var(--rule);display:inline-block}
+.err-box{color:var(--warn);font-weight:500}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+@media (max-width:600px){
+  .sheet{padding:14px}.drop{padding-bottom:170px}.tb{left:-2px;min-width:0}
+  .stage{padding:10px;max-height:62vh}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.auto{flex-direction:row!important;align-items:center;gap:8px!important;font:500 14px "Barlow",sans-serif!important;color:var(--ink)!important;cursor:pointer}
+.auto input{width:18px;height:18px;accent-color:var(--accent)}
