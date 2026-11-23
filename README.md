@@ -2,11 +2,13 @@
 
 # DXF to PDF
 
+[![build](https://github.com/bitopiit-dev/DXF_to_PDF/actions/workflows/build.yml/badge.svg)](https://github.com/bitopiit-dev/DXF_to_PDF/actions/workflows/build.yml)
+
 A portable desktop app that turns a DXF drawing into a vector PDF and opens it. Drop the file in, and the PDF opens in your default viewer a moment later. Nothing is uploaded; the conversion runs on your computer.
 
 ## Download
 
-Grab a build from the [Releases](../../releases) page:
+Grab a build from the [Releases](https://github.com/bitopiit-dev/DXF_to_PDF/releases) page:
 
 - **Windows:** `DXF-to-PDF-x.y.z-portable.exe` runs without installing. Copy it to a USB stick or any folder and double-click. `DXF-to-PDF-x.y.z-setup.exe` installs it and lets you double-click `.dxf` files to open them in the app.
 - **Linux:** `DXF-to-PDF-x.y.z.AppImage` (make it executable, then run).

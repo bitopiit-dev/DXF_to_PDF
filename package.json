@@ -3,6 +3,14 @@
   "productName": "DXF to PDF",
   "version": "1.0.0",
   "description": "Convert DXF drawings to vector PDF and open them in one step.",
+  "homepage": "https://github.com/bitopiit-dev/DXF_to_PDF#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bitopiit-dev/DXF_to_PDF.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bitopiit-dev/DXF_to_PDF/issues"
+  },
   "main": "src/main/main.js",
   "private": true,
   "scripts": {
@@ -33,11 +41,19 @@
       "package.json"
     ],
     "fileAssociations": [
-      { "ext": "dxf", "name": "DXF drawing", "description": "DXF drawing", "role": "Viewer" }
+      {
+        "ext": "dxf",
+        "name": "DXF drawing",
+        "description": "DXF drawing",
+        "role": "Viewer"
+      }
     ],
     "win": {
       "icon": "assets/icon/icon.ico",
-      "target": ["portable", "nsis"]
+      "target": [
+        "portable",
+        "nsis"
+      ]
     },
     "portable": {
       "artifactName": "DXF-to-PDF-${version}-portable.exe"
@@ -50,13 +66,17 @@
     "linux": {
       "icon": "assets/icon",
       "category": "Graphics",
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "artifactName": "DXF-to-PDF-${version}.AppImage"
     },
     "mac": {
       "icon": "assets/icon/icon.icns",
       "category": "public.app-category.graphics-design",
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "artifactName": "DXF-to-PDF-${version}.dmg"
     }
   }
