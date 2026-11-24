@@ -101,6 +101,60 @@ test('dark theme and zoom controls', async () => {
   await win.click('#theme button[data-v="system"]');
 });
 
+test('presets apply settings and can be saved and deleted', async () => {
+  await win.locator('#queue li', { hasText: 'scale-mm.dxf' }).click();
+  await ready();
+  await win.selectOption('#preset', 'A3 1:50 engineering');
+  await win.waitForFunction(() => document.getElementById('scale').value === '1:50' && /PDF ready/.test(document.getElementById('sMsg').textContent));
+  assert.strictEqual(await win.inputValue('#size'), 'A3');
+  assert.strictEqual(await win.isChecked('#tbOn'), true, 'title block switched on by the preset');
+  await win.selectOption('#size', 'A2');
+  await win.waitForFunction(() => document.getElementById('preset').value === '');
+  await win.click('#presetSave');
+  await win.fill('#presetName', 'A2 site plan');
+  await win.click('#presetOk');
+  await win.waitForFunction(() => document.getElementById('preset').value === 'A2 site plan');
+  assert.ok(fs.existsSync(path.join(work, 'profile', 'presets.json')), 'saved on disk');
+  await win.click('#presetDelete');
+  await win.waitForFunction(() => ![...document.querySelectorAll('#preset option')].some(o => o.value === 'A2 site plan'));
+});
+
+test('title block fields appear in the preview, Bangla included', async () => {
+  await win.fill('#tbProject', 'বিতপি টাওয়ার');
+  await win.press('#tbProject', 'Tab');
+  await win.fill('#tbStamp', 'Preliminary');
+  await win.press('#tbStamp', 'Tab');
+  await win.waitForFunction(() => /Preliminary/.test(document.querySelector('#paper .title-block')?.textContent || ''));
+  assert.match(await win.locator('#paper .title-block').textContent(), /বিতপি টাওয়ার/);
+  await shot('8-title-block');
+});
+
+test('layer colour and line weight overrides', async () => {
+  await win.locator('#queue li', { hasText: 'basic.dxf' }).click();
+  await ready();
+  const row = win.locator('#layers li', { hasText: 'WALLS' });
+  await row.locator('select').selectOption('2');
+  await win.waitForFunction(() => document.querySelector('#layers li select.custom'));
+  await row.locator('input[type=color]').evaluate(i => { i.value = '#ff00aa'; i.dispatchEvent(new Event('change')); });
+  await win.waitForFunction(() => /#ff00aa/.test(document.getElementById('paper').innerHTML));
+  assert.strictEqual(await win.locator('#lReset').isVisible(), true);
+  await row.locator('button.eye').click();
+  await win.waitForFunction(() => document.querySelector('#layers li.off'));
+  await shot('9-layers');
+  await win.click('#lReset');
+  await row.locator('button.eye').click();
+  await win.waitForFunction(() => !/#ff00aa/.test(document.getElementById('paper').innerHTML) && !document.querySelector('#layers li.off'));
+});
+
+test('toolbar switches the grid, rulers and sheet outlines', async () => {
+  for (const [id, cls] of [['#tGrid', 'no-grid'], ['#tRulers', 'no-rulers'], ['#tTiles', 'no-tiles']]) {
+    await win.click(id);
+    assert.ok(await win.evaluate(c => document.getElementById('viewer').classList.contains(c), cls), cls);
+    await win.click(id);
+    assert.ok(!(await win.evaluate(c => document.getElementById('viewer').classList.contains(c), cls)));
+  }
+});
+
 test('fits small laptop screens and narrow windows without sideways scrolling', async () => {
   for (const [w, h, name] of [[1093, 582, '5-laptop-1366x768-125pct'], [760, 560, '6-narrow']]) {
     await size(w, h);
