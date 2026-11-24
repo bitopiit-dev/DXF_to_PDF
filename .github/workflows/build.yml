@@ -18,6 +18,16 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm test
+      - name: End-to-end tests (real Electron app on a virtual display)
+        run: xvfb-run -a npm run test:e2e
+        env:
+          SHOTS: e2e-screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: e2e-screenshots
+          if-no-files-found: ignore
 
   package:
     needs: test
@@ -25,13 +35,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-latest   # one installer for x64, 32-bit and ARM PCs, plus portable x64 and 32-bit
             cmd: dist:win
             files: dist/*.exe
-          - os: ubuntu-latest
+          - os: ubuntu-latest    # AppImage and .deb for x64 and ARM64
             cmd: dist:linux
-            files: dist/*.AppImage
-          - os: macos-latest
+            files: |
+              dist/*.AppImage
+              dist/*.deb
+          - os: macos-latest     # universal: Intel and Apple silicon
             cmd: dist:mac
             files: dist/*.dmg
     runs-on: ${{ matrix.os }}
