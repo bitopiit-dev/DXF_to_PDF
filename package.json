@@ -1,7 +1,7 @@
 {
   "name": "dxf-to-pdf",
   "productName": "DXF to PDF",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Convert DXF drawings to vector PDF: true scale, tiling, Bangla text, batch conversion.",
   "author": "K/Arifur Rahman",
   "license": "SEE LICENSE IN LICENSE",
@@ -122,8 +122,7 @@
     "copyright": "Copyright \u00a9 2026 K/Arifur Rahman",
     "asarUnpack": [
       "node_modules/harfbuzzjs/**",
-      "src/core/fonts/**",
-      "src/core/text-shaper.mjs"
+      "src/core/text/**"
     ],
     "deb": {
       "depends": [

@@ -1,0 +1,49 @@
+@font-face{font-family:"Barlow";src:url("../fonts/Barlow-Regular.ttf") format("truetype");font-weight:400}
+@font-face{font-family:"Barlow";src:url("../fonts/Barlow-Medium.ttf") format("truetype");font-weight:500}
+@font-face{font-family:"Barlow";src:url("../fonts/Barlow-SemiBold.ttf") format("truetype");font-weight:600}
+@font-face{font-family:"Barlow";src:url("../fonts/Barlow-Bold.ttf") format("truetype");font-weight:700}
+@font-face{font-family:"Barlow Condensed";src:url("../fonts/BarlowCondensed-Medium.ttf") format("truetype");font-weight:500}
+@font-face{font-family:"Barlow Condensed";src:url("../fonts/BarlowCondensed-SemiBold.ttf") format("truetype");font-weight:600}
+@font-face{font-family:"Barlow Condensed";src:url("../fonts/BarlowCondensed-Bold.ttf") format("truetype");font-weight:700}
+
+/* ---------- tokens ----------
+   The drawing room: a green self-healing cutting mat, a pale yellow ruler, navy ink and a marker-orange pen.
+   Each colour has one job: mat = workspace, navy = chrome and chosen options, orange = action and marks. */
+:root{
+  --bar:#0e2236; --bar-ink:#ffffff; --bar-muted:#a9bccd; --bar-line:rgba(255,255,255,.18);
+  --mat:#17704f; --grid:rgba(255,255,255,.10); --grid-major:rgba(255,255,255,.22);
+  --table:#17704f; --panel:#ffffff; --raise:#ffffff; --ink:#0e2236; --muted:#556a7c; --rule:#d6dee5; --soft:#f1f5f8;
+  --accent:#ff7a1a; --accent-ink:#0e2236; --sel:#fff1e6; --link:#c2410c; --focus:#0e2236; --mark:#ff7a1a;
+  --chosen:#0e2236; --chosen-ink:#ffffff;
+  --warn:#c62828; --ok:#1b7f4b; --info:#1f5fd6;
+  --ruler:#fbf3c9; --ruler-ink:#5b4a12; --ruler-edge:#e3d48a;
+  --shadow:0 1px 2px rgba(14,34,54,.25),0 10px 30px rgba(6,30,20,.35);
+  --files-w:clamp(210px,17vw,280px); --out-w:clamp(270px,21vw,320px); --pad:14px; --row:34px;
+  --font:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif; --cond:"Barlow Condensed","Arial Narrow",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bar:#08131e; --bar-ink:#eef4f9; --bar-muted:#8aa0b3; --bar-line:rgba(255,255,255,.12);
+    --mat:#0d3d2d; --grid:rgba(255,255,255,.06); --grid-major:rgba(255,255,255,.14); --table:#0d3d2d;
+    --panel:#121c26; --raise:#1a2633; --ink:#e6edf3; --muted:#93a5b5; --rule:#283746; --soft:#1c2935;
+    --accent:#ff8c42; --accent-ink:#0b1824; --sel:#33221a; --link:#ffa463; --focus:#ff8c42; --mark:#ff8c42;
+    --chosen:#e6edf3; --chosen-ink:#0b1824;
+    --warn:#ff8a80; --ok:#6fd3a0; --info:#7fb0ff;
+    --ruler:#2b2717; --ruler-ink:#d9cd94; --ruler-edge:#4a4223;
+    --shadow:0 1px 2px rgba(0,0,0,.6),0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bar:#08131e; --bar-ink:#eef4f9; --bar-muted:#8aa0b3; --bar-line:rgba(255,255,255,.12);
+  --mat:#0d3d2d; --grid:rgba(255,255,255,.06); --grid-major:rgba(255,255,255,.14); --table:#0d3d2d;
+  --panel:#121c26; --raise:#1a2633; --ink:#e6edf3; --muted:#93a5b5; --rule:#283746; --soft:#1c2935;
+  --accent:#ff8c42; --accent-ink:#0b1824; --sel:#33221a; --link:#ffa463; --focus:#ff8c42; --mark:#ff8c42;
+  --chosen:#e6edf3; --chosen-ink:#0b1824;
+  --warn:#ff8a80; --ok:#6fd3a0; --info:#7fb0ff;
+  --ruler:#2b2717; --ruler-ink:#d9cd94; --ruler-edge:#4a4223;
+  --shadow:0 1px 2px rgba(0,0,0,.6),0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+}
+/* small or heavily scaled screens (1366×768 at 125 %, netbooks) get a denser layout */
+@media (max-height:700px),(max-width:1180px){ :root{ --pad:11px; --row:30px } }
+
