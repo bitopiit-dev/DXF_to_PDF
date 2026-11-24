@@ -254,3 +254,45 @@ test('batch keeps going past a failing drawing and reports progress', async () =
   assert.strictEqual(r.failed[0].error, 'bad');
   assert.deepStrictEqual(seen, [1, 2, 3, 4]);
 });
+
+/* ---------- watch folder and update checks ---------- */
+
+test('a watched folder converts new drawings once, after they finish saving', async () => {
+  const { createWatcher, upToDate } = require('../src/main/watcher.js');
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dxf2pdf-w-'));
+  const events = [];
+  let calls = 0;
+  const w = createWatcher({
+    step: 60,
+    convert: async (src, dest) => { calls++; fs.writeFileSync(dest, '%PDF-fake'); return dest; },
+    onEvent: e => events.push(e),
+  });
+  fs.writeFileSync(path.join(dir, 'old.dxf'), 'x'); fs.writeFileSync(path.join(dir, 'old.pdf'), 'y'); // PDF already newer
+  await w.start(dir);
+  fs.writeFileSync(path.join(dir, 'new.dxf'), '0\nSECTION\n');
+  fs.writeFileSync(path.join(dir, 'notes.txt'), 'ignored');
+  for (let i = 0; i < 60 && !fs.existsSync(path.join(dir, 'new.pdf')); i++) await new Promise(r => setTimeout(r, 50));
+  await new Promise(r => setTimeout(r, 900));
+  w.stop();
+  assert.ok(fs.existsSync(path.join(dir, 'new.pdf')), 'new drawing converted');
+  assert.strictEqual(calls, 1, 'old drawing with a newer PDF and the text file were left alone');
+  assert.ok(await upToDate(path.join(dir, 'new.dxf')));
+  assert.deepStrictEqual(events.map(e => e.type), ['watching', 'converting', 'converted']);
+});
+
+test('update checks compare versions the way releases are numbered', () => {
+  const { newer } = require('../src/main/updater.js');
+  assert.ok(newer('v3.1.0', '3.0.0'));
+  assert.ok(newer('3.0.10', '3.0.9'));
+  assert.ok(!newer('v3.0.0', '3.0.0'));
+  assert.ok(!newer('2.9.9', '3.0.0'));
+  assert.ok(!newer('3.1.0-beta.1', '3.1.0'));
+});
+
+test('update errors read as one plain sentence', () => {
+  const { friendly } = require('../src/main/updater.js');
+  const raw = 'Cannot find latest-linux.yml in the latest release artifacts (https://github.com/x/y/releases/download/v3.0.0/latest-linux.yml): HttpError: 404\nHeaders: {...}';
+  assert.strictEqual(friendly(new Error(raw)), 'The latest release has no update information yet.');
+  assert.match(friendly(new Error('net::ERR_INTERNET_DISCONNECTED')), /could not be reached/);
+  assert.ok(friendly(new Error('x'.repeat(400))).length <= 120);
+});

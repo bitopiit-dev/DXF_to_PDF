@@ -10,7 +10,7 @@
     size: 'A3', orient: 'auto', margin: 10, scaleMode: 'fit', scale: '1:100', units: 'auto', overlap: 10, ink: 'color',
     titleBlock: Object.freeze({ enabled: false, project: '', drawnBy: '', date: '', stamp: '' }),
   });
-  const UI_DEFAULTS = Object.freeze({ autoOpen: true, theme: 'system', saveWhere: 'beside', showGrid: true, showRulers: true, showTiles: true });
+  const UI_DEFAULTS = Object.freeze({ autoOpen: true, theme: 'system', saveWhere: 'beside', showGrid: true, showRulers: true, showTiles: true, autoUpdate: true });
   const pick = (v, list, d) => (list.includes(v) ? v : d);
   const num = (v, lo, hi, d) => { const n = parseFloat(v); return isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
   const txt = (v, n = 80) => String(v == null ? '' : v).slice(0, n);
@@ -35,6 +35,7 @@
       autoOpen: s.autoOpen !== false, theme: pick(s.theme, ['system', 'light', 'dark'], 'system'),
       saveWhere: pick(s.saveWhere, ['beside', 'folder'], 'beside'),
       showGrid: s.showGrid !== false, showRulers: s.showRulers !== false, showTiles: s.showTiles !== false,
+      autoUpdate: s.autoUpdate !== false,
     };
   }
   const today = () => new Date().toISOString().slice(0, 10);

@@ -11,6 +11,7 @@ const isCli = process.argv.includes('--convert') || process.argv.includes('--hel
 
 /* ---------- command line: convert without opening a window ---------- */
 if (isCli) {
+  if (process.platform === 'win32') app.setAppUserModelId('com.dxftopdf.app'); // notifications need the installer's app id
   app.whenReady()
     .then(() => require('./cli').run(process.argv.slice(1)))
     .then(code => app.exit(code), e => { console.error(e); app.exit(1); });
@@ -23,6 +24,10 @@ function startGui() {
   const store = require('./store');
   const Presets = require('../models/presets');
   const { runBatch } = require('../core/batch');
+  const Settings = require('../models/settings');
+  const { createUpdater } = require('./updater');
+  const { createWatcher } = require('./watcher');
+  let updater = null, watcher = null;
   let win = null;
   let pool = null;
   const docs = new Map(); // id -> { path, name, pdf (ArrayBuffer of the last render) }
@@ -59,6 +64,8 @@ function startGui() {
     return { x: wa.x + Math.round((wa.width - width) / 2), y: wa.y + Math.round((wa.height - height) / 2), width, height };
   }
 
+  const TITLEBAR_H = 52;
+
   function createWindow() {
     const wa = screen.getPrimaryDisplay().workArea;
     const dark = nativeTheme.shouldUseDarkColors;
@@ -69,7 +76,11 @@ function startGui() {
       show: false,
       title: 'DXF to PDF',
       icon: path.join(ROOT, 'assets', 'icon', 'icon.png'),
-      backgroundColor: dark ? '#0d1317' : '#dfe4e8',
+      backgroundColor: dark ? '#0d3d2d' : '#17704f',
+      // the app's navy top bar is the title bar; the system draws its own window buttons over it
+      ...(process.platform === 'darwin'
+        ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 18 } }
+        : { titleBarStyle: 'hidden', titleBarOverlay: { color: dark ? '#08131e' : '#0e2236', symbolColor: '#eef4f9', height: TITLEBAR_H } }),
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
@@ -178,6 +189,59 @@ function startGui() {
 
   /* presets: built-in ones first, then the user's own */
   const allPresets = () => [...Presets.BUILTIN.map(p => ({ ...p })), ...store.list()];
+  /* ---------- window chrome ---------- */
+  ipcMain.handle('app:menu', (_e, { x, y }) => {
+    const m = Menu.getApplicationMenu();
+    if (m && win) m.popup({ window: win, x: Math.round(x), y: Math.round(y) });
+  });
+  ipcMain.handle('app:titlebar', (_e, { color, symbolColor }) => {
+    const hex = v => (/^#[0-9a-f]{6}$/i.test(v) ? v : null);
+    if (win && process.platform !== 'darwin' && typeof win.setTitleBarOverlay === 'function' && hex(color) && hex(symbolColor)) {
+      try { win.setTitleBarOverlay({ color, symbolColor, height: TITLEBAR_H }); } catch { /* not supported here */ }
+    }
+  });
+
+  /* ---------- the settings last used, for right-click conversion and the watch folder ---------- */
+  ipcMain.handle('settings:remember', (_e, settings) => { store.saveLast(settings); });
+
+  /* ---------- watch folder ---------- */
+  async function convertFile(src, dest) {
+    const id = crypto.randomUUID();
+    try {
+      const meta = await pool.open(id, await fs.readFile(src));
+      const r = await pool.render(id, { hidden: meta.hidden, opts: Settings.toEngine(store.last()), title: path.basename(src).replace(/\.dxf$/i, ''), svg: false });
+      if (!r.pdf) throw new Error(r.error || (r.notes && r.notes[0]) || 'Nothing to draw.');
+      await fs.writeFile(dest, Buffer.from(r.pdf));
+      return dest;
+    } catch (e) {
+      throw new Error(e.message === 'binary' ? 'Binary DXF: save it as ASCII DXF.' : e.message === 'notdxf' ? 'Not a DXF file.' : e.message);
+    } finally { pool.close(id); }
+  }
+  const watchInfo = () => ({ folder: (state.watch && state.watch.folder) || null, on: !!(watcher && watcher.folder()) });
+  async function startWatching(folder) {
+    try {
+      await watcher.start(folder);
+      state.watch = { folder, on: true }; saveState();
+    } catch (e) {
+      state.watch = { folder, on: false }; saveState();
+      if (win) win.webContents.send('watch:event', { type: 'stopped', error: e.code === 'ENOENT' ? 'The folder no longer exists.' : e.message });
+    }
+    return watchInfo();
+  }
+  ipcMain.handle('watch:get', () => watchInfo());
+  ipcMain.handle('watch:choose', async () => {
+    const r = await dialog.showOpenDialog(win, { title: 'Choose a folder to watch', properties: ['openDirectory', 'createDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return watchInfo();
+    return startWatching(r.filePaths[0]);
+  });
+  ipcMain.handle('watch:resume', () => (state.watch && state.watch.folder ? startWatching(state.watch.folder) : watchInfo()));
+  ipcMain.handle('watch:stop', () => { watcher.stop(); state.watch = { ...(state.watch || {}), on: false }; saveState(); return watchInfo(); });
+
+  /* ---------- updates ---------- */
+  ipcMain.handle('update:auto', (_e, on) => { updater.schedule(!!on); return { selfUpdating: updater.selfUpdating, state: updater.get() }; });
+  ipcMain.handle('update:check', () => updater.check(true));
+  ipcMain.handle('update:install', () => updater.install());
+
   ipcMain.handle('presets:list', () => allPresets());
   ipcMain.handle('presets:save', (_e, { name, settings }) => {
     const problem = Presets.validName(name);
@@ -280,6 +344,8 @@ function startGui() {
           { label: 'Save all PDFs…', accelerator: 'CmdOrCtrl+Shift+S', click: send('save-all') },
           { label: 'Combine into one PDF…', click: send('combine') },
           { type: 'separator' },
+          { label: 'Watch a folder…', click: send('watch') },
+          { type: 'separator' },
           { label: 'Close drawing', accelerator: 'CmdOrCtrl+W', click: send('close') },
           isMac ? { role: 'close' } : { role: 'quit' },
         ],
@@ -296,7 +362,15 @@ function startGui() {
           ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' }]),
         ],
       },
-      { role: 'help', submenu: [{ label: 'About DXF to PDF', click: () => app.showAboutPanel() }] },
+      {
+        role: 'help',
+        submenu: [
+          { label: 'Show the welcome tour', click: send('tour') },
+          { label: 'Check for updates…', click: () => updater && updater.check(true) },
+          { type: 'separator' },
+          { label: 'About DXF to PDF', click: () => app.showAboutPanel() },
+        ],
+      },
     ]));
   }
 
@@ -317,11 +391,13 @@ function startGui() {
 
   app.whenReady().then(() => {
     pool = new Pool({});
+    updater = createUpdater(st => win && win.webContents.send('update:state', st));
+    watcher = createWatcher({ convert: convertFile, onEvent: ev => win && win.webContents.send('watch:event', ev) });
     buildMenu();
     createWindow();
     queuePaths(dxfArgs(process.argv));
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
   });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-  app.on('will-quit', () => { if (pool) pool.destroy(); });
+  app.on('will-quit', () => { if (watcher) watcher.stop(); if (pool) pool.destroy(); });
 }

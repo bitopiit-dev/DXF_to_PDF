@@ -18,6 +18,8 @@ const HELP = `DXF to PDF, command line
   --ink color|black                             (default color)
   --margin <mm>                                 (default 10)
   --overlap <mm>                                (overlap between tiled sheets, default 10)
+  --last-used                                   use the settings last used in the app (right-click menu)
+  --notify                                      show a notification when finished
   --preset "<name>"                             start from a saved or built-in preset; other options override it
   --project, --drawn-by, --stamp "<text>"       add a title block with these fields
 
@@ -32,6 +34,8 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === '--convert') { mode = 'in'; continue; }
     if (a === '--help' || a === '-h') { opts.help = true; continue; }
+    if (a === '--last-used') { opts.lastUsed = true; mode = mode === 'in' ? 'in' : null; continue; }
+    if (a === '--notify') { opts.notify = true; mode = mode === 'in' ? 'in' : null; continue; }
     const m = a.match(/^--([a-z-]+)(?:=(.*))?$/);
     if (m && VALUE_FLAGS.includes(m[1])) { opts[m[1]] = m[2] != null ? m[2] : argv[++i]; mode = null; continue; }
     if (m) continue; // Electron/Chromium switches
@@ -59,6 +63,7 @@ async function run(argv, log = console.log, err = console.error) {
   if (!st.shaping) err(`Bangla text support unavailable: ${st.error}`);
   const files = expand(inputs);
   let base = Settings.normalize({});
+  if (opts.lastUsed) { try { base = require('./store').last(); } catch { /* defaults */ } }
   if (opts.preset) {
     let user = [];
     try { user = require('./store').list(); } catch { /* no saved presets */ }
@@ -73,7 +78,7 @@ async function run(argv, log = console.log, err = console.error) {
   const render = { size: pickv('size', eng.size), orient: pickv('orient', eng.orient), scale: pickv('scale', eng.scale), units: pickv('units', eng.units),
     ink: pickv('ink', eng.ink), margin: pickv('margin', eng.margin), overlap: pickv('overlap', eng.overlap), titleBlock: tb };
   if (opts.out) fs.mkdirSync(opts.out, { recursive: true });
-  let failed = 0;
+  let failed = 0, lastOut = null;
   const combined = [];
   for (const f of files) {
     const name = path.basename(f.path).replace(/\.dxf$/i, '');
@@ -85,6 +90,7 @@ async function run(argv, log = console.log, err = console.error) {
       if (r.error || r.empty) { err(`✗ ${f.path}: ${r.error || r.notes[0]}`); failed++; continue; }
       const out = path.join(opts.out || path.dirname(f.path), name + '.pdf');
       fs.writeFileSync(out, Buffer.from(r.pdf));
+      lastOut = out;
       log(`✓ ${out}  (${r.info.sheets} sheet${r.info.sheets > 1 ? 's' : ''}, ${r.info.size}, ${r.info.scale})`);
     } catch (e) {
       err(`✗ ${f.path}: ${e.message === 'binary' ? 'binary DXF, save it as ASCII DXF' : e.message === 'notdxf' ? 'not a DXF file' : e.message}`);
@@ -96,7 +102,19 @@ async function run(argv, log = console.log, err = console.error) {
     if (r.pdf) { fs.writeFileSync(opts.combine, Buffer.from(r.pdf)); log(`✓ ${opts.combine}  (${combined.length - r.skipped.length} drawings)`); }
     for (const s of r.skipped) { err(`✗ ${s}: nothing to draw at these settings`); failed++; }
   }
+  if (opts.notify) await notify(files.length - failed, failed, lastOut);
   return failed ? 1 : 0;
+}
+
+// A Windows/macOS/Linux notification for conversions started from the file manager, where no window opens.
+async function notify(ok, failed, out) {
+  let Notification;
+  try { ({ Notification } = require('electron')); } catch { return; }
+  if (!Notification || !Notification.isSupported()) return;
+  const title = failed ? (ok ? `${ok} PDF${ok > 1 ? 's' : ''} saved, ${failed} failed` : 'Could not convert to PDF') : (ok > 1 ? `${ok} PDFs saved` : 'PDF saved');
+  const body = failed && !ok ? 'Open the drawing in DXF to PDF to see why.' : out ? `${require('node:path').basename(out)} is next to the drawing.` : '';
+  new Notification({ title, body, silent: false }).show();
+  await new Promise(r => setTimeout(r, 1500)); // give the system time to post it before the process exits
 }
 
 module.exports = { run, parseArgs, HELP };

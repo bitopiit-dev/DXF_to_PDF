@@ -1,7 +1,7 @@
 {
   "name": "dxf-to-pdf",
   "productName": "DXF to PDF",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Convert DXF drawings to vector PDF: true scale, tiling, Bangla text, batch conversion.",
   "author": "K/Arifur Rahman",
   "license": "SEE LICENSE IN LICENSE",
@@ -25,6 +25,7 @@
     "test:e2e": "node --test --test-concurrency=1 tests/e2e/app.e2e.test.js"
   },
   "dependencies": {
+    "electron-updater": "6.8.11",
     "harfbuzzjs": "1.6.4",
     "jspdf": "2.5.1"
   },
@@ -37,7 +38,7 @@
     "appId": "com.dxftopdf.app",
     "productName": "DXF to PDF",
     "directories": {
-      "buildResources": "assets/icon",
+      "buildResources": "build",
       "output": "dist"
     },
     "files": [
@@ -131,6 +132,13 @@
         "libgtk-3-0",
         "libxss1"
       ]
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "bitopiit-dev",
+        "repo": "DXF_to_PDF"
+      }
+    ]
   }
 }

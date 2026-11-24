@@ -21,4 +21,13 @@ function save(name, settings) {
 }
 function remove(name) { write(list().filter(p => p.name.toLowerCase() !== String(name).toLowerCase())); }
 
-module.exports = { list, save, remove };
+// The settings last used in the app, so right-click "Convert to PDF" and the watch folder match it.
+const lastFile = () => path.join(app.getPath('userData'), 'last-settings.json');
+function saveLast(settings) {
+  try { fs.mkdirSync(path.dirname(lastFile()), { recursive: true }); fs.writeFileSync(lastFile(), JSON.stringify(Settings.normalize(settings))); } catch { /* not fatal */ }
+}
+function last() {
+  try { return Settings.normalize(JSON.parse(fs.readFileSync(lastFile(), 'utf8'))); } catch { return Settings.normalize({}); }
+}
+
+module.exports = { list, save, remove, saveLast, last };
