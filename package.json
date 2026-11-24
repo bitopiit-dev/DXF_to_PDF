@@ -1,8 +1,8 @@
 {
   "name": "dxf-to-pdf",
   "productName": "DXF to PDF",
-  "version": "1.0.1",
-  "description": "Convert DXF drawings to vector PDF and open them in one step.",
+  "version": "2.0.0",
+  "description": "Convert DXF drawings to vector PDF: true scale, tiling, Bangla text, batch conversion.",
   "author": "K/Arifur Rahman",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://github.com/bitopiit-dev/DXF_to_PDF#readme",
@@ -21,14 +21,17 @@
     "dist": "electron-builder --publish never",
     "dist:win": "electron-builder --win --publish never",
     "dist:linux": "electron-builder --linux --publish never",
-    "dist:mac": "electron-builder --mac --publish never"
+    "dist:mac": "electron-builder --mac --publish never",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/app.e2e.test.js"
   },
   "dependencies": {
+    "harfbuzzjs": "1.6.4",
     "jspdf": "2.5.1"
   },
   "devDependencies": {
     "electron": "33.2.1",
-    "electron-builder": "25.1.8"
+    "electron-builder": "25.1.8",
+    "playwright-core": "1.65.0"
   },
   "build": {
     "appId": "com.dxftopdf.app",
@@ -41,7 +44,8 @@
       "src/**/*",
       "assets/icon/icon.png",
       "package.json",
-      "LICENSE"
+      "LICENSE",
+      "!node_modules/harfbuzzjs/dist/harfbuzz-subset.wasm"
     ],
     "fileAssociations": [
       {
@@ -54,34 +58,79 @@
     "win": {
       "icon": "assets/icon/icon.ico",
       "target": [
-        "portable",
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32",
+            "arm64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
       ]
     },
     "portable": {
-      "artifactName": "DXF-to-PDF-${version}-portable.exe"
+      "artifactName": "DXF-to-PDF-${version}-portable-${arch}.exe"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "DXF-to-PDF-${version}-setup.exe"
+      "artifactName": "DXF-to-PDF-${version}-setup.exe",
+      "perMachine": false
     },
     "linux": {
       "icon": "assets/icon",
       "category": "Graphics",
       "target": [
-        "AppImage"
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
-      "artifactName": "DXF-to-PDF-${version}.AppImage"
+      "artifactName": "DXF-to-PDF-${version}-${arch}.${ext}",
+      "maintainer": "K/Arifur Rahman"
     },
     "mac": {
       "icon": "assets/icon/icon.icns",
       "category": "public.app-category.graphics-design",
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
       ],
-      "artifactName": "DXF-to-PDF-${version}.dmg"
+      "artifactName": "DXF-to-PDF-${version}-universal.dmg"
     },
-    "copyright": "Copyright © 2026 K/Arifur Rahman"
+    "copyright": "Copyright \u00a9 2026 K/Arifur Rahman",
+    "asarUnpack": [
+      "node_modules/harfbuzzjs/**",
+      "src/core/fonts/**",
+      "src/core/text-shaper.mjs"
+    ],
+    "deb": {
+      "depends": [
+        "libnss3",
+        "libgtk-3-0",
+        "libxss1"
+      ]
+    }
   }
 }
