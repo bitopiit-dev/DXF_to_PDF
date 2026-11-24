@@ -5,9 +5,9 @@
   else (root.Models = root.Models || {}).settings = m;
 })(typeof globalThis !== 'undefined' ? globalThis : this, () => {
   'use strict';
-  const SIZES = ['A4', 'A3', 'A2', 'A1', 'A0', 'Letter', 'Legal', 'Tabloid'];
+  const SIZES = ['A4', 'A3', 'A2', 'A1', 'A0', 'Letter', 'Legal', 'Tabloid', 'Roll'];
   const DEFAULTS = Object.freeze({
-    size: 'A3', orient: 'auto', margin: 10, scaleMode: 'fit', scale: '1:100', units: 'auto', overlap: 10, ink: 'color',
+    size: 'A3', rollWidth: 914, splitSizes: false, orient: 'auto', margin: 10, scaleMode: 'fit', scale: '1:100', units: 'auto', overlap: 10, ink: 'color',
     titleBlock: Object.freeze({ enabled: false, project: '', drawnBy: '', date: '', stamp: '' }),
   });
   const UI_DEFAULTS = Object.freeze({ autoOpen: true, theme: 'system', saveWhere: 'beside', showGrid: true, showRulers: true, showTiles: true, autoUpdate: true });
@@ -20,6 +20,8 @@
     const tb = s.titleBlock || {};
     return {
       size: pick(s.size, SIZES, DEFAULTS.size),
+      rollWidth: num(s.rollWidth, 200, 3000, DEFAULTS.rollWidth),
+      splitSizes: !!s.splitSizes,
       orient: pick(s.orient, ['auto', 'landscape', 'portrait'], DEFAULTS.orient),
       margin: num(s.margin, 0, 40, DEFAULTS.margin),
       scaleMode: pick(s.scaleMode, ['fit', 'fixed'], DEFAULTS.scaleMode),
@@ -43,7 +45,7 @@
   function toEngine(s, layers) {
     const n = normalize(s);
     return {
-      size: n.size, orient: n.orient, margin: n.margin, ink: n.ink, units: n.units, overlap: n.overlap,
+      size: n.size, rollWidth: n.rollWidth, orient: n.orient, margin: n.margin, ink: n.ink, units: n.units, overlap: n.overlap,
       scale: n.scaleMode === 'fit' ? 'fit' : n.scale,
       titleBlock: n.titleBlock.enabled ? { ...n.titleBlock, date: n.titleBlock.date || today() } : null,
       layers: layers || undefined,

@@ -179,7 +179,8 @@ function flatten(dxf, hidden, tol) {
       }
       case 'INSERT': {
         const b = dxf.blocks[str(e, 2).toUpperCase()];
-        if (b) {
+        // garment files: a whole piece (one size of it) can be hidden by its block name
+        if (b && !hidden.has('\u0000block:' + str(e, 2).toUpperCase())) {
           const sx = num(e, 41, 1), sy = num(e, 42, 1), rot = num(e, 50) * D2R;
           const cols = Math.max(1, num(e, 70, 1)), rows = Math.max(1, num(e, 71, 1)), cs = num(e, 44), rs = num(e, 45);
           for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
@@ -210,7 +211,18 @@ function flatten(dxf, hidden, tol) {
         } catch (err) { skipped.HATCH = (skipped.HATCH || 0) + 1; }
         break;
       }
-      case 'POINT': case 'ATTDEF': case 'VIEWPORT': case 'XLINE': case 'RAY': break;
+      case 'POINT': {
+        // in garment patterns, points on the drill-hole layer are holes to mark; all other points stay invisible
+        const dr = dxf.drillR;
+        if (dr > 0 && (layer === '13' || /drill/i.test(layer))) {
+          const x = num(e, 10), y = num(e, 20), k = dr * 1.6;
+          path(arcPts(x, y, dr, 0, TAU), true, m);
+          path([[x - k, y], [x + k, y]], false, m);
+          path([[x, y - k], [x, y + k]], false, m);
+        } else { used[e.type]--; }
+        break;
+      }
+      case 'ATTDEF': case 'VIEWPORT': case 'XLINE': case 'RAY': break;
       default: used[e.type]--; skipped[e.type] = (skipped[e.type] || 0) + 1;
     }
   }

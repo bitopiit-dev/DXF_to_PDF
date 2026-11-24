@@ -12,8 +12,19 @@ function plan(prims, ext, opts) {
   const mg = opts.margin != null ? Math.max(0, opts.margin) : 10;
   const fixed = typeof opts.scale === 'number' && isFinite(opts.scale) && opts.scale > 0;
   const unit = opts.unitMM > 0 ? opts.unitMM : 1;
+  // plotter roll: fixed width across, as long as the drawing needs along the roll, in segments of at most
+  // 5 m (most PDF viewers cannot show longer pages); longer markers continue on the next page
+  const ROLL_MAX = 5000;
+  function rollPage(land) {
+    const across = Math.max(100, Math.min(3000, opts.rollWidth || 914));
+    const along = land ? bw : bh, side = land ? bh : bw;
+    const s = fixed ? unit / opts.scale : Math.min((across - 2 * mg) / side, (ROLL_MAX - 2 * mg) / along);
+    const len = Math.min(ROLL_MAX, Math.max(across * 0.25, along * s + 2 * mg + 0.01));
+    return land ? [len, across] : [across, len];
+  }
   function layout(land) {
-    const pw = land ? base[1] : base[0], ph = land ? base[0] : base[1], uw = pw - 2 * mg, uh = ph - 2 * mg;
+    const rp = opts.size === 'Roll' ? rollPage(land) : null;
+    const pw = rp ? rp[0] : land ? base[1] : base[0], ph = rp ? rp[1] : land ? base[0] : base[1], uw = pw - 2 * mg, uh = ph - 2 * mg;
     if (!fixed) {
       let s = Math.min(uw / bw, uh / bh), aw = uw, ah = uh;
       // with a title block, give the drawing whichever space above or beside the block keeps it largest

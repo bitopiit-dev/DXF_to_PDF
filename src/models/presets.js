@@ -9,6 +9,7 @@
     { name: 'A4 fit, black and white', settings: { size: 'A4', orient: 'auto', margin: 10, scaleMode: 'fit', ink: 'black', titleBlock: { enabled: false } } },
     { name: 'A3 1:50 engineering', settings: { size: 'A3', orient: 'landscape', margin: 10, scaleMode: 'fixed', scale: '1:50', ink: 'color', titleBlock: { enabled: true } } },
     { name: 'A1 1:100 plot', settings: { size: 'A1', orient: 'landscape', margin: 15, scaleMode: 'fixed', scale: '1:100', ink: 'color', titleBlock: { enabled: true } } },
+    { name: 'Marker 1:1 on 914 mm roll', settings: { size: 'Roll', rollWidth: 914, orient: 'auto', margin: 10, scaleMode: 'fixed', scale: '1:1', ink: 'black', titleBlock: { enabled: false } } },
     { name: 'A4 tiles 1:1 (full-size patterns)', settings: { size: 'A4', orient: 'auto', margin: 10, scaleMode: 'fixed', scale: '1:1', overlap: 10, ink: 'black', titleBlock: { enabled: false } } },
   ].map(p => Object.freeze({ ...p, builtin: true })));
   const isBuiltin = name => BUILTIN.some(p => p.name.toLowerCase() === String(name).trim().toLowerCase());

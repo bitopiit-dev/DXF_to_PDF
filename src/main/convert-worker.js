@@ -15,7 +15,7 @@ parentPort.on('message', async ({ seq, op, args }) => {
     else if (op === 'open') {
       const o = C.open(args.data);
       docs.set(args.id, o.dxf);
-      res = { layers: o.layers, hidden: o.hidden, units: o.units };
+      res = { layers: o.layers, hidden: o.hidden, units: o.units, garment: o.garment };
     } else if (op === 'render') {
       const dxf = docs.get(args.id);
       if (!dxf) throw new Error('gone');

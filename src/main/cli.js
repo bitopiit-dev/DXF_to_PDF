@@ -11,7 +11,8 @@ const HELP = `DXF to PDF, command line
   --convert <files or folders>   DXF files to convert (folders: every .dxf inside)
   --out <folder>                 where to write PDFs (default: next to each DXF)
   --combine <file.pdf>           write all drawings into one PDF instead
-  --size A4|A3|A2|A1|A0|Letter|Legal|Tabloid   (default A3)
+  --size A4|A3|A2|A1|A0|Letter|Legal|Tabloid|Roll
+  --roll-width <mm>                             plotter roll width when --size Roll (default 914)   (default A3)
   --orient auto|landscape|portrait              (default auto)
   --scale fit|1:50|2:1                          (default fit)
   --units auto|mm|cm|m|in|ft                    (default auto: from the file)
@@ -25,7 +26,7 @@ const HELP = `DXF to PDF, command line
 
 Example: "DXF to PDF" --convert plans --out pdf --scale 1:100 --size A1`;
 
-const VALUE_FLAGS = ['out', 'combine', 'size', 'orient', 'scale', 'units', 'ink', 'margin', 'overlap', 'preset', 'project', 'drawn-by', 'stamp'];
+const VALUE_FLAGS = ['roll-width', 'out', 'combine', 'size', 'orient', 'scale', 'units', 'ink', 'margin', 'overlap', 'preset', 'project', 'drawn-by', 'stamp'];
 
 function parseArgs(argv) {
   const opts = {}, inputs = [];
@@ -76,7 +77,7 @@ async function run(argv, log = console.log, err = console.error) {
   const tbOn = opts.project != null || opts['drawn-by'] != null || opts.stamp != null;
   const tb = tbOn || eng.titleBlock ? { enabled: true, project: pickv('project', ''), drawnBy: pickv('drawn-by', base.titleBlock.drawnBy), stamp: pickv('stamp', base.titleBlock.stamp), date: Settings.today() } : null;
   const render = { size: pickv('size', eng.size), orient: pickv('orient', eng.orient), scale: pickv('scale', eng.scale), units: pickv('units', eng.units),
-    ink: pickv('ink', eng.ink), margin: pickv('margin', eng.margin), overlap: pickv('overlap', eng.overlap), titleBlock: tb };
+    ink: pickv('ink', eng.ink), rollWidth: +pickv('roll-width', eng.rollWidth), margin: pickv('margin', eng.margin), overlap: pickv('overlap', eng.overlap), titleBlock: tb };
   if (opts.out) fs.mkdirSync(opts.out, { recursive: true });
   let failed = 0, lastOut = null;
   const combined = [];
