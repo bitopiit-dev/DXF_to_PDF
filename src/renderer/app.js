@@ -76,6 +76,7 @@
       const li = document.createElement('li');
       li.role = 'option'; li.id = 'q-' + d.id; li.dataset.id = d.id;
       li.setAttribute('aria-selected', String(d.id === S.sel));
+      li.dataset.state = d.error || (d.result && d.result.error) ? 'error' : d.state === 'saved' ? 'saved' : d.result ? 'ready' : 'new';
       const name = document.createElement('span'); name.className = 'name'; name.textContent = d.name; name.title = d.path;
       const sub = document.createElement('span'); sub.className = 'sub';
       if (d.error) { sub.textContent = d.error; sub.classList.add('err'); }
@@ -208,7 +209,12 @@
     };
     if (opts.scaleMode === 'fit') say(`Prints at about ${i.fitScale}. For a scale you can measure, `, i.suggested);
     else if (i.sheets > 1 && !r.error) say(`Splits into ${i.sheets} sheets that overlap by ${opts.overlap} mm. To fit one sheet, `, i.suggested);
-    else if (!r.error) say(`Fits one ${i.size} sheet. Check the print with the scale bar in the margin.`);
+    else if (!r.error) {
+      // a larger scale that still fits one sheet makes better use of the paper
+      const N = v => { const m = String(v).match(/^(\d*\.?\d+):(\d*\.?\d+)$/); return m ? m[2] / m[1] : NaN; };
+      if (i.suggested && N(i.suggested) < N(opts.scale) * 0.999) say(`Fits one ${i.size} sheet with room to spare. To print it larger, `, i.suggested);
+      else say(`Fits one ${i.size} sheet. Check the print with the scale bar in the margin.`);
+    }
   }
 
   function setScale(s) {
@@ -224,6 +230,8 @@
     const layers = (d && d.layers) || [];
     $('layerCount').textContent = layers.length ? `${layers.length - layers.filter(l => d.hidden.has(l.name)).length} of ${layers.length}` : '';
     $('layerFilter').hidden = layers.length < 10;
+    document.querySelector('.layer-tools').hidden = !layers.length;
+    if (d && !layers.length) { const p = document.createElement('li'); p.className = 'layers-empty'; p.textContent = 'This drawing has no layers; everything prints.'; box.append(p); return; }
     const q = $('layerFilter').value.trim().toLowerCase();
     for (const l of layers) {
       if (q && !l.name.toLowerCase().includes(q)) continue;
@@ -265,6 +273,12 @@
   function place() {
     paper.style.transform = `translate(${V.x}px, ${V.y}px) scale(${V.k / (V.kBase || V.k)})`;
     $('zPct').textContent = Math.round(V.k / CSS_PX_PER_MM * 100) + '%';
+    // cutting-mat grid in real paper millimetres: minor lines every 10 mm (or coarser when zoomed out), major every 5 minor
+    const minor = [1, 2, 5, 10, 20, 50, 100, 200, 500].find(mm => mm * V.k >= 14) || 1000;
+    stage.style.setProperty('--gm', minor * V.k + 'px');
+    stage.style.setProperty('--gM', minor * 5 * V.k + 'px');
+    stage.style.setProperty('--gx', V.x + 'px');
+    stage.style.setProperty('--gy', V.y + 'px');
     drawRulers();
   }
   function zoomAt(f, sx, sy) {
@@ -348,10 +362,10 @@
       const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
       if (!V.w || !V.k) continue;
       const cs = getComputedStyle(document.documentElement);
-      const ink = cs.getPropertyValue('--ruler-ink').trim(), acc = cs.getPropertyValue('--accent').trim();
+      const ink = cs.getPropertyValue('--ruler-ink').trim(), acc = cs.getPropertyValue('--mark').trim();
       const L = horiz ? w : h, T = horiz ? h : w, o = horiz ? V.x : V.y, size = horiz ? V.w : V.h;
       // paper extent band
-      g.fillStyle = cs.getPropertyValue('--raise').trim();
+      g.fillStyle = 'rgba(255,122,26,.16)'; // the paper's extent, marked in orange on the ruler
       const a = Math.max(0, o), b = Math.min(L, o + size * V.k);
       if (b > a) { if (horiz) g.fillRect(a, 0, b - a, T); else g.fillRect(0, a, T, b - a); }
       const steps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000];
