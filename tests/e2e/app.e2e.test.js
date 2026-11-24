@@ -7,6 +7,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { _electron } = require('playwright-core');
+const { execFile } = require('node:child_process');
+const electronBin = require('electron');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SHOTS = process.env.SHOTS;
@@ -22,6 +24,7 @@ const ready = () => win.waitForFunction(() => /PDF ready|Too many|Nothing/.test(
 test.before(async () => {
   app = await _electron.launch({
     cwd: ROOT,
+    env: { ...process.env, DXF2PDF_FAKE_UPDATE: '9.9.9' }, // pretend a newer version has downloaded
     args: ['--no-sandbox', `--user-data-dir=${path.join(work, 'profile')}`, '.', path.join(work, 'bangla.dxf'), path.join(work, 'scale-mm.dxf'), path.join(work, 'basic.dxf')],
   });
   win = await app.firstWindow();
@@ -37,6 +40,42 @@ test('opens every drawing passed on the command line and previews the first', as
   assert.ok(await win.locator('#paper svg').count(), 'preview drawn');
   assert.strictEqual(await win.locator('#bOpenPdf').isEnabled(), true);
   await shot('1-workspace');
+});
+
+test('a welcome tour walks through the workspace once, then stays away', async () => {
+  await win.waitForSelector('#tour.on', { timeout: 5000 });
+  assert.match(await text('#tourStep'), /^1 of 6/);
+  assert.ok(await win.locator('#tourSpot').isVisible(), 'the first stop is highlighted');
+  await shot('1b-tour-start');
+  await win.click('#tourNext'); await win.click('#tourNext');
+  assert.match(await text('#tourTitle'), /Exact scale/);
+  await win.waitForTimeout(350);
+  await shot('1c-tour-scale');
+  await win.keyboard.press('ArrowLeft');
+  assert.match(await text('#tourStep'), /^2 of 6/);
+  for (let i = 0; i < 4; i++) await win.click('#tourNext');
+  assert.strictEqual(await text('#tourNext'), 'Done');
+  await win.click('#tourNext');
+  await win.waitForSelector('#tour', { state: 'hidden' });
+  assert.strictEqual(await win.evaluate(() => localStorage.getItem('tourDone')), '3.1');
+});
+
+test('a downloaded update is offered without getting in the way', async () => {
+  await win.waitForSelector('#updBanner:not([hidden])', { timeout: 5000 });
+  assert.match(await text('#updMsg'), /Version 9\.9\.9 is ready/);
+  await shot('1d-update-ready');
+  await win.click('#updLater');
+  await win.waitForSelector('#updBanner', { state: 'hidden' });
+});
+
+test('the top bar is the title bar and opens the app menu', async () => {
+  const region = await win.evaluate(() => getComputedStyle(document.querySelector('.bar')).webkitAppRegion || getComputedStyle(document.querySelector('.bar')).getPropertyValue('-webkit-app-region'));
+  assert.strictEqual(region, 'drag');
+  const btn = await win.evaluate(() => getComputedStyle(document.getElementById('bOpen')).getPropertyValue('-webkit-app-region'));
+  assert.strictEqual(btn, 'no-drag', 'buttons stay clickable');
+  assert.ok(await win.locator('#appMenu').isVisible());
+  const frameless = await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; return typeof w.setTitleBarOverlay === 'function'; });
+  assert.ok(frameless);
 });
 
 test('Bangla text is drawn as shaped outlines, not question marks', async () => {
@@ -153,6 +192,36 @@ test('toolbar switches the grid, rulers and sheet outlines', async () => {
     await win.click(id);
     assert.ok(!(await win.evaluate(c => document.getElementById('viewer').classList.contains(c), cls)));
   }
+});
+
+test('a watched folder turns new drawings into PDFs on its own', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dxf2pdf-watch-'));
+  await app.evaluate(({ dialog }, d) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [d] }); }, dir);
+  await win.click('#watchChoose');
+  await win.waitForSelector('#sWatch:not([hidden])');
+  assert.strictEqual(await win.getAttribute('#watchBox', 'data-on'), 'true');
+  fs.copyFileSync(path.join(ROOT, 'tests', 'fixtures', 'scale-mm.dxf'), path.join(dir, 'new-part.dxf'));
+  const pdf = path.join(dir, 'new-part.pdf');
+  for (let i = 0; i < 60 && !fs.existsSync(pdf); i++) await win.waitForTimeout(250);
+  assert.ok(fs.existsSync(pdf), 'PDF written beside the new drawing');
+  assert.strictEqual(fs.readFileSync(pdf).subarray(0, 5).toString(), '%PDF-');
+  await win.waitForFunction(() => /converted/.test(document.getElementById('sWatch').textContent));
+  await shot('9b-watching');
+  await win.click('#watchStop');
+  await win.waitForSelector('#sWatch', { state: 'hidden' });
+});
+
+test('right-click conversion uses the settings last used in the app', async () => {
+  await win.selectOption('#size', 'A4');
+  await win.click('#scaleMode button[data-v="fixed"]');
+  await win.fill('#scale', '1:1'); await win.press('#scale', 'Enter');
+  await win.waitForTimeout(600); // settings are remembered shortly after they change
+  const src = path.join(work, 'cli-copy.dxf');
+  fs.copyFileSync(path.join(ROOT, 'tests', 'fixtures', 'scale-mm.dxf'), src);
+  const out = await new Promise((resolve, reject) => execFile(electronBin,
+    ['--no-sandbox', `--user-data-dir=${path.join(work, 'profile')}`, ROOT, '--convert', src, '--last-used'],
+    { timeout: 60000 }, (err, stdout, stderr) => (err && !stdout ? reject(new Error(stderr || err.message)) : resolve(stdout))));
+  assert.match(out, /cli-copy\.pdf .*A4, 1:1/);
 });
 
 test('fits small laptop screens and narrow windows without sideways scrolling', async () => {
