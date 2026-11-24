@@ -1,7 +1,7 @@
 {
   "name": "dxf-to-pdf",
   "productName": "DXF to PDF",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Convert DXF drawings to vector PDF: true scale, tiling, Bangla text, batch conversion.",
   "author": "K/Arifur Rahman",
   "license": "SEE LICENSE IN LICENSE",
