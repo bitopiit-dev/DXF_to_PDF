@@ -6,6 +6,8 @@ const path = require('node:path');
 const { jsPDF } = require('jspdf');
 const DXF = require('../src/core/dxf-core.js');
 const C = require('../src/core/convert.js');
+const Garment = require('../src/core/garment.js');
+const DXF_GARMENT_BLOCKS = (o, sizes) => Garment.hiddenBlocks(o.garment, sizes);
 
 const fixture = name => fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8');
 const measure = new jsPDF();
@@ -295,4 +297,60 @@ test('update errors read as one plain sentence', () => {
   assert.strictEqual(friendly(new Error(raw)), 'The latest release has no update information yet.');
   assert.match(friendly(new Error('net::ERR_INTERNET_DISCONNECTED')), /could not be reached/);
   assert.ok(friendly(new Error('x'.repeat(400))).length <= 120);
+});
+
+/* ---------- garment patterns (Lectra and other AAMA/ASTM exports) ---------- */
+
+test('a garment pattern file is recognised from its labels', () => {
+  const o = open('aama-pattern.dxf');
+  assert.ok(o.garment, 'detected');
+  assert.strictEqual(o.garment.units, 'in', 'UNITS: ENGLISH means inches');
+  assert.deepStrictEqual(o.garment.sizes, ['S', 'M']);
+  assert.strictEqual(o.garment.design, 'TEST-001');
+  assert.deepStrictEqual([...new Set(o.garment.pieces.map(p => p.piece))], ['SLEEVE']);
+  const lab = Object.fromEntries(o.layers.map(l => [l.name, l.label]));
+  assert.strictEqual(lab['14'], 'Sew line (14)');
+  assert.strictEqual(lab['13'], 'Drill holes (13)');
+  assert.strictEqual(open('basic.dxf').garment, null, 'ordinary drawings are not patterns');
+});
+
+test('pattern sizes print at true size, one size at a time or each on its own pages', async () => {
+  await C.init();
+  const o = open('aama-pattern.dxf');
+  const m = C.render(o.dxf, o.hidden, { size: 'A4', sizes: { hide: ['S'] } }, { svg: false });
+  assert.ok(Math.abs(m.info.realW - 20 * 25.4) < 1, `size M is 20 in wide: ${m.info.realW} mm`);
+  assert.strictEqual(m.info.unitsGuessed, false);
+  const all = C.render(o.dxf, o.hidden, { size: 'A4' }, { svg: false });
+  assert.ok(all.objects > m.objects, 'hiding a size removes its piece');
+  const split = C.render(o.dxf, o.hidden, { size: 'A4', sizes: { split: true } }, { svg: false });
+  assert.strictEqual(pdfPages(split.pdf), 2, 'one page per size');
+  assert.match(split.notes.join(' '), /own pages: S, M/);
+});
+
+test('drill holes are marked, grading points stay invisible', () => {
+  const o = open('aama-pattern.dxf');
+  o.dxf.drillR = 0.1;
+  const { f } = DXF.build(o.dxf, new Set(DXF_GARMENT_BLOCKS(o, ['S'])));
+  assert.ok(f.prims.some(p => p.layer === '13' && p.closed), 'drill hole drawn as a circle');
+  assert.ok(!f.prims.some(p => p.layer === '2'), 'turn point not drawn');
+  const plain = open('aama-pattern.dxf'); plain.dxf.drillR = 0; // outside garment mode points are never drawn
+  assert.ok(!DXF.build(plain.dxf, new Set()).f.prims.some(p => p.layer === '13'));
+});
+
+test('a marker fits a plotter roll: fixed width across, length as needed', async () => {
+  await C.init();
+  const o = open('aama-pattern.dxf');
+  const r = C.render(o.dxf, o.hidden, { size: 'Roll', rollWidth: 914, scale: '1:1', sizes: { hide: ['S'] } }, { svg: false });
+  assert.strictEqual(r.info.sheets, 1);
+  const sides = [r.info.pageW, r.info.pageH].map(Math.round);
+  assert.ok(sides.includes(914), `one side is the roll width: ${sides}`);
+  const along = sides[0] === 914 ? sides[1] : sides[0];
+  assert.ok(along >= 508 && along < 600, `the length follows the piece (20 in = 508 mm) plus margins: ${along}`);
+  assert.match(r.info.size, /914 mm roll/);
+});
+
+test('files without a layer table still list their layers', () => {
+  const dxf = '0\nSECTION\n2\nENTITIES\n0\nLINE\n8\nCUT\n10\n0\n20\n0\n11\n10\n21\n0\n0\nLINE\n8\nSEW\n10\n0\n20\n1\n11\n10\n21\n1\n0\nENDSEC\n0\nEOF\n';
+  const o = C.open(Buffer.from(dxf));
+  assert.deepStrictEqual(o.layers.map(l => l.name), ['CUT', 'SEW']);
 });

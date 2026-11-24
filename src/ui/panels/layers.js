@@ -15,7 +15,7 @@
     if (d && !layers.length) { box.append(el('li', { className: 'layers-empty', textContent: 'This drawing has no layers; everything prints.' })); return; }
     const q = $('layerFilter').value.trim().toLowerCase();
     for (const l of layers) {
-      if (q && !l.name.toLowerCase().includes(q)) continue;
+      if (q && !(l.label || l.name).toLowerCase().includes(q)) continue;
       const off = d.hidden.has(l.name), o = d.overrides[l.name] || {};
       const li = el('li', { className: off ? 'off' : '' });
 
@@ -33,7 +33,7 @@
       pick.onchange = () => { set(d, l.name, { color: pick.value.toLowerCase() === l.color.toLowerCase() ? null : pick.value }); };
       sw.append(pick);
 
-      const name = el('span', { className: 'ln', title: l.name }, l.name);
+      const name = el('span', { className: 'ln', title: l.name }, l.label || l.name);
       if (l.frozen || l.off) name.append(el('small', { textContent: l.frozen ? 'frozen' : 'off' }));
 
       const lw = el('select', { className: o.lw && o.lw !== 1 ? 'custom' : '' });

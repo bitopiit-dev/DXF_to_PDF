@@ -3,6 +3,7 @@
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const DXF = require('./dxf-core.js');
+const Garment = require('./garment');
 const TB = require('./layout/title-block');
 const { jsPDF } = require('jspdf');
 
@@ -57,12 +58,24 @@ function open(buf) {
   const layers = Object.entries(dxf.layers)
     .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
     .map(([name, L]) => ({ name, color: DXF.layerHex(L), off: L.color < 0, frozen: !!(L.flags & 1), noPlot: L.plot === 0 }));
+  // garment pattern files (Lectra, AAMA/ASTM) often have no layer table: list the layers the geometry uses
+  if (!layers.length) for (const name of Garment.usedLayers(dxf).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))) layers.push({ name, color: '#000000', off: false, frozen: false, noPlot: false });
+  const g = Garment.detect(dxf);
+  dxf.garment = g;
+  const labels = g ? Garment.layerLabels(layers.map(l => l.name)) : {};
+  for (const l of layers) if (labels[l.name]) l.label = labels[l.name];
   const hidden = layers.filter(l => l.off || l.frozen || l.name.toLowerCase() === 'defpoints').map(l => l.name);
-  return { dxf, layers, hidden, units: DXF.unitName(dxf) };
+  return { dxf, layers, hidden, units: DXF.unitName(dxf) || (g && g.units) || null, garment: g };
 }
 
 function prepare(dxf, hidden, opts) {
-  const { f, ext } = DXF.build(dxf, hidden instanceof Set ? hidden : new Set(hidden || []));
+  const g = dxf.garment;
+  const units = opts.units && opts.units !== 'auto' ? opts.units : null;
+  const unitMM = DXF.unitMM(dxf, units || (g && g.units));
+  dxf.drillR = g ? 2.5 / unitMM : 0; // drill marks 5 mm across on the cloth
+  const hide = new Set(hidden instanceof Set ? hidden : hidden || []);
+  for (const k of Garment.hiddenBlocks(g, opts.sizes && opts.sizes.hide)) hide.add(k);
+  const { f, ext } = DXF.build(dxf, hide);
   // per-layer colour and line-weight overrides from the Layers panel or a preset
   const ov = opts.layers || {};
   if (Object.keys(ov).length) for (const p of f.prims) {
@@ -73,21 +86,24 @@ function prepare(dxf, hidden, opts) {
   }
   const objects = Object.values(f.used).reduce((a, b) => a + Math.max(0, b), 0);
   if (!ext) return { f, objects, empty: true };
-  const units = opts.units && opts.units !== 'auto' ? opts.units : null;
-  const unitMM = DXF.unitMM(dxf, units);
   const P = DXF.plan(f.prims, ext, { size: opts.size || 'A3', orient: opts.orient || 'auto', ink: opts.ink || 'color',
     margin: opts.margin != null ? +opts.margin : 10, overlap: opts.overlap != null ? +opts.overlap : 10,
-    scale: parseScale(opts.scale), unitMM,
+    scale: parseScale(opts.scale), unitMM, rollWidth: +opts.rollWidth || 914,
     reserve: opts.titleBlock && opts.titleBlock.enabled ? TB.size : null });
   P.titleBlock = opts.titleBlock || null;
   P.title = opts.title || '';
-  return { f, ext, P, objects, unitMM, unitsGuessed: !units && !DXF.unitName(dxf) };
+  return { f, ext, P, objects, unitMM, unitsGuessed: !units && !DXF.unitName(dxf) && !(g && g.units) };
 }
 
 function describe(dxf, prep, opts) {
   const { f, P, objects } = prep;
   const notes = [];
   if (f.paper) notes.push('Model space was empty, so the layout (paper space) was used.');
+  const g = dxf.garment;
+  if (g) {
+    const n = g.pieces.length;
+    notes.push(`${g.vendor} pattern${g.design ? ' ' + g.design : ''}: ${n} piece${n === 1 ? '' : 's'}${g.sizes.length ? ` in ${g.sizes.length} size${g.sizes.length === 1 ? '' : 's'}` : ''}${g.units ? `, ${g.units === 'mm' ? 'metric' : 'inches'} (read from the file)` : ''}.`);
+  }
   const sk = Object.entries(f.skipped).filter(([, n]) => n > 0);
   if (sk.length) notes.push('Not drawn: ' + sk.map(([k, n]) => `${k.toLowerCase()} (${n})`).join(', ') + '.');
   const shaped = f.prims.filter(p => p.k === 'o').length;
@@ -98,8 +114,8 @@ function describe(dxf, prep, opts) {
     sheets: P.sheetCount, fitScale: DXF.fmtScale(P.fitN), suggested: standardScale(P.fitN), cols: P.cols, rows: P.rows, pageW: P.pw, pageH: P.ph,
     scale: DXF.fmtScale(P.scaleN), fixed: P.fixed,
     realW: (prep.ext.maxx - prep.ext.minx) * prep.unitMM, realH: (prep.ext.maxy - prep.ext.miny) * prep.unitMM,
-    size: opts.size || 'A3', landscape: P.pw > P.ph,
-    posterW: P.posterW, posterH: P.posterH, units: opts.units && opts.units !== 'auto' ? opts.units : (DXF.unitName(dxf) || 'mm'),
+    size: opts.size === 'Roll' ? `${Math.round(+opts.rollWidth || 914)} mm roll` : (opts.size || 'A3'), landscape: P.pw > P.ph,
+    posterW: P.posterW, posterH: P.posterH, units: opts.units && opts.units !== 'auto' ? opts.units : (DXF.unitName(dxf) || (dxf.garment && dxf.garment.units) || 'mm'),
     unitsGuessed: !!prep.unitsGuessed,
     // paper mm -> drawing units: x = minx + (mmX - ox) / s, y = maxy - (mmY - oy) / s
     map: { ox: P.ox, oy: P.oy, s: P.s, minx: prep.ext.minx, maxy: prep.ext.maxy },
@@ -117,8 +133,30 @@ function render(dxf, hidden, opts = {}, { title, svg = true, pdf = true } = {}) 
   }
   const out = { ...d };
   if (svg) out.svg = DXF.toSVG(prep.P);
-  if (pdf) out.pdf = DXF.toPDF(prep.P, jsPDF, title).output('arraybuffer');
+  if (pdf) {
+    const split = sizePages(dxf, hidden, opts, title, null);
+    if (split) { out.pdf = split.doc ? split.doc.output('arraybuffer') : null; out.notes = [...out.notes, `Each size has its own pages: ${split.sizes.join(', ')}.`]; }
+    else out.pdf = DXF.toPDF(prep.P, jsPDF, title).output('arraybuffer');
+  }
   return out;
+}
+
+// Garment files with "each size on its own pages": one plan per visible size, all in one PDF.
+// Returns null when the option does not apply, so the caller draws the drawing as one plan.
+function sizePages(dxf, hidden, opts, title, doc) {
+  const g = dxf.garment, sz = opts.sizes || {};
+  if (!g || !sz.split) return null;
+  const visible = g.sizes.filter(s => !(sz.hide || []).includes(s));
+  if (visible.length < 2) return null;
+  const done = [];
+  for (const size of visible) {
+    const name = `${title || opts.title || 'Pattern'}, size ${size}`;
+    const p = prepare(dxf, hidden, { ...opts, title: name, sizes: { hide: g.sizes.filter(x => x !== size) } });
+    if (p.empty || p.P.sheetCount > MAX_SHEETS) continue;
+    doc = DXF.toPDF(p.P, jsPDF, title, doc);
+    done.push(size);
+  }
+  return { doc, sizes: done };
 }
 
 // Several drawings into one PDF, in order. items: [{ dxf, hidden, opts, title }]
@@ -128,7 +166,8 @@ function combine(items, title) {
   for (const it of items) {
     const prep = prepare(it.dxf, it.hidden, { ...(it.opts || {}), title: it.title });
     if (prep.empty || prep.P.sheetCount > MAX_SHEETS) { skipped.push(it.title); continue; }
-    doc = DXF.toPDF(prep.P, jsPDF, title, doc);
+    const split = sizePages(it.dxf, it.hidden, { ...(it.opts || {}), title: it.title }, it.title, doc);
+    doc = split ? split.doc : DXF.toPDF(prep.P, jsPDF, title, doc);
   }
   return { pdf: doc ? doc.output('arraybuffer') : null, skipped };
 }

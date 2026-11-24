@@ -224,6 +224,26 @@ test('right-click conversion uses the settings last used in the app', async () =
   assert.match(out, /cli-copy\.pdf .*A4, 1:1/);
 });
 
+test('a garment pattern shows its pieces and sizes, and prints one size or a roll', async () => {
+  const file = path.join(work, 'aama-pattern.dxf');
+  fs.copyFileSync(path.join(ROOT, 'tests', 'fixtures', 'aama-pattern.dxf'), file);
+  await app.evaluate(({ dialog }, f) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [f] }); }, file);
+  await win.click('#bOpen');
+  await win.waitForSelector('#garmentSec:not([hidden])');
+  assert.match(await text('#garmentFacts'), /SLEEVE/);
+  assert.match(await text('#garmentFacts'), /Inches \(from the file\)/);
+  assert.strictEqual(await win.locator('.size-chip').count(), 2);
+  await win.locator('.size-chip', { hasText: 'S' }).first().click();
+  await win.waitForSelector('.size-chip[aria-pressed="false"]');
+  assert.match(await text('#layers'), /Sew line \(14\)/);
+  await win.selectOption('#size', 'Roll');
+  assert.ok(await win.locator('#rollField').isVisible(), 'roll width appears for plotter rolls');
+  await ready();
+  assert.match(await text('#sSheet'), /914 mm roll/);
+  await shot('9c-pattern');
+  await win.selectOption('#size', 'A4');
+});
+
 test('fits small laptop screens and narrow windows without sideways scrolling', async () => {
   for (const [w, h, name] of [[1093, 582, '5-laptop-1366x768-125pct'], [760, 560, '6-narrow']]) {
     await size(w, h);

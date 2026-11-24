@@ -31,7 +31,9 @@
       inp.value = opts[key] = v; changed();
     };
   }
-  $('size').onchange = () => { opts.size = $('size').value; changed(); };
+  const rollShown = () => { $('rollField').hidden = opts.size !== 'Roll'; };
+  $('size').onchange = () => { opts.size = $('size').value; rollShown(); changed(); };
+  numberInput('rollWidth', 'rollWidth', 200, 3000);
   $('units').onchange = () => { opts.units = $('units').value; changed(); };
   numberInput('margin', 'margin', 0, 40);
   numberInput('overlap', 'overlap', 0, 50);
@@ -47,6 +49,7 @@
   // put every control back in line with opts, e.g. after a preset is applied
   function sync() {
     $('size').value = opts.size; $('units').value = opts.units; $('margin').value = opts.margin;
+    $('rollWidth').value = opts.rollWidth; rollShown();
     $('overlap').value = opts.overlap; $('scale').value = opts.scale;
     $('out').dataset.scale = opts.scaleMode;
     segs.forEach(s => s());
