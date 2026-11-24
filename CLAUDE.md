@@ -13,12 +13,15 @@ Desktop app (Electron) that converts DXF drawings to vector PDF, fitted or at an
   - `batch.js` — runs one job per drawing with progress and keeps going past failures.
   - `dxf-core.js` — facade with the original API, kept for stable imports.
 - `src/models/` — plain data rules shared by the UI, main process and CLI (UMD, no dependencies): `settings.js` (validated export settings), `presets.js` (built-in presets, name rules), `layer-overrides.js`.
-- `src/main/` — Electron main process: `main.js` (window, menu, IPC), `pool.js` + `convert-worker.js` (worker threads sized to the PC), `store.js` (user presets on disk), `cli.js` (headless `--convert`), `preload.js` (the only bridge, `window.desktop`).
+- `src/main/` — Electron main process: `main.js` (window, menu, IPC), `pool.js` + `convert-worker.js` (worker threads sized to the PC), `store.js` (user presets and the last-used settings on disk), `cli.js` (headless `--convert`, plus `--last-used` and `--notify` for the Explorer right-click menu), `updater.js` (GitHub Releases: self-update for the NSIS installer and AppImage, notify-only elsewhere), `watcher.js` (watch folder), `preload.js` (the only bridge, `window.desktop`). The window has a custom title bar: the UI's `.bar` is the drag region and the system draws its buttons over it (`titleBarOverlay`).
+- `build/installer.nsh` — NSIS additions: the right-click entries for `.dxf` files and folders (current user), removed on uninstall. Compile-check it with `makensis` after edits.
 - `src/ui/` — the interface, as plain scripts sharing `window.App` (set up in `state.js`, loaded in order by `index.html`):
   - `canvas/` — `viewport.js` (zoom at cursor, pan, pinch), `rulers.js` (mm rulers and the mat grid), `toolbar.js` (floating toolbar, grid/ruler/sheet-outline switches).
   - `panels/` — `queue.js`, `sheet.js` (paper, scale, smart scale hint), `layers.js` (eye, colour, line weight), `title-block.js`, `presets.js`.
   - `app.js` — wiring: opening, converting, painting results, saving, menus. `icons.js` — inline SVG icons.
   - `styles/tokens.css` (colours, light and dark) and `styles/components.css`.
+- `src/ui/chrome.js` (title bar, menu button, update banner, motion), `src/ui/panels/automation.js` (watch folder, update switch, remembering settings), `src/ui/tour.js` (first-run tour).
+- Releases must include `latest*.yml` and `.blockmap` files (CI uploads them); without them installed apps cannot update.
 - `tests/` — `core.test.js` (unit, `node --test`) with fixtures in `tests/fixtures/`; `e2e/app.e2e.test.js` drives the real app with Playwright.
 - `.github/workflows/build.yml` — unit + e2e tests on every push/PR; on `v*` tags builds Windows (x64, ia32, arm64), Linux (AppImage, deb; x64, arm64) and macOS (universal) and attaches them to a release.
 

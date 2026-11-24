@@ -36,6 +36,17 @@ Full list and current limits: [docs/supported-dxf.md](docs/supported-dxf.md).
 
 In the preview, drag to move, scroll or pinch to zoom, double-click to fit. The floating toolbar zooms and switches the grid, rulers and sheet outlines on and off. Ctrl+1 shows the sheet at about real size. The rulers show paper millimetres, and the status bar shows the cursor position in drawing units.
 
+### Working without opening the app
+
+- **Right-click in Windows Explorer:** after installing with the setup file, right-click any `.dxf` file and choose **Convert to PDF**, or right-click a folder and choose **Convert DXF drawings to PDF**. The PDF is saved next to the drawing with the settings you last used in the app, and a notification tells you when it's done. On Windows 11 these entries are under **Show more options**.
+- **Watch folder:** in **Automation**, choose a folder. While the app is open, every DXF saved there becomes a PDF beside it, using the current settings. A DXF whose PDF is already newer is left alone.
+
+### Updates
+
+The installed Windows app and the Linux AppImage check GitHub Releases, download new versions in the background and offer **Restart now**. The portable `.exe`, `.deb` and macOS builds can't replace themselves, so they show a link to the new version instead. Turn automatic checks off in **Automation**, or check by hand from **Help → Check for updates…**.
+
+A short welcome tour runs the first time you open a drawing; replay it from **Help → Show the welcome tour**.
+
 ### Command line
 
 The same app converts without opening a window:
