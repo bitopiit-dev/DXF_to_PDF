@@ -16,13 +16,15 @@
 | Line weights | Entity, layer and block values in mm |
 | Line types | Dash patterns with LTSCALE and per-object scale |
 | Layers | Off, frozen and Defpoints hidden by default; toggle in the app |
+| Non-Latin text | Bangla, Greek, Cyrillic and symbols shaped with HarfBuzz and drawn as vector outlines |
+| Units and scale | `$INSUNITS` read for exact scales (mm, cm, m, in, ft, and others); unitless drawings are treated as mm |
+| Tiling | At an exact scale, drawings larger than the paper split into overlapping, labelled sheets (up to 400) |
 
 ## Not yet
 
 - Binary DXF (save as ASCII DXF instead)
 - Paper-space layouts and viewports (model space is printed; paper space is used only when model space is empty)
-- SHX and TrueType text styles: text uses Helvetica
-- Non-Latin text such as Bangla prints as `?`
+- SHX and TrueType text styles: Latin text uses Helvetica, other scripts use Noto Sans or Noto Sans Bengali
+- Scripts other than Latin, Greek, Cyrillic and Bangla (for example Chinese or Arabic) show as empty boxes
 - Complex line types with embedded text or shapes (only their dashes are drawn)
 - Gradient hatches print as a solid fill
-- Plot scales such as 1:100 (the drawing is fitted to the page)
