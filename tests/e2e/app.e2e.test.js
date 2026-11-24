@@ -24,7 +24,7 @@ const ready = () => win.waitForFunction(() => /PDF ready|Too many|Nothing/.test(
 test.before(async () => {
   app = await _electron.launch({
     cwd: ROOT,
-    env: { ...process.env, DXF2PDF_FAKE_UPDATE: '9.9.9' }, // pretend a newer version has downloaded
+    env: { ...process.env, DXF2PDF_FAKE_UPDATE: '9.9.9', DXF2PDF_TEST: '1' }, // a fake downloaded update; never open other programs
     args: ['--no-sandbox', `--user-data-dir=${path.join(work, 'profile')}`, '.', path.join(work, 'bangla.dxf'), path.join(work, 'scale-mm.dxf'), path.join(work, 'basic.dxf')],
   });
   win = await app.firstWindow();

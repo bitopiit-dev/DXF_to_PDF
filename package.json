@@ -1,7 +1,7 @@
 {
   "name": "dxf-to-pdf",
   "productName": "DXF to PDF",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Convert DXF drawings to vector PDF: true scale, tiling, Bangla text, batch conversion.",
   "author": "K/Arifur Rahman",
   "license": "SEE LICENSE IN LICENSE",
@@ -17,12 +17,12 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --test tests/core.test.js",
+    "test": "node --test --test-timeout=60000 tests/core.test.js",
     "dist": "electron-builder --publish never",
     "dist:win": "electron-builder --win --publish never",
     "dist:linux": "electron-builder --linux --publish never",
     "dist:mac": "electron-builder --mac --publish never",
-    "test:e2e": "node --test --test-concurrency=1 tests/e2e/app.e2e.test.js"
+    "test:e2e": "node --test --test-concurrency=1 --test-timeout=180000 tests/e2e/app.e2e.test.js"
   },
   "dependencies": {
     "electron-updater": "6.8.11",
