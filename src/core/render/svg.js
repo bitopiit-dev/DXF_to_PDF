@@ -35,11 +35,22 @@ function toSVG(P) {
   o += '</g>';
   P.pages.forEach((pg, i) => { o += titleBlockSVG(P, pg, i); });
   if (P.pages.length > 1) {
+    // each join shows once: a light band where neighbouring sheets overlap, with one cut line through it
+    const sx = P.uw - P.ov, sy = P.uh - P.ov, W = (P.cols - 1) * sx + P.uw, H = (P.rows - 1) * sy + P.uh;
     o += '<g class="tiles" fill="none">';
+    o += `<rect class="edge" x="${f2(P.mg)}" y="${f2(P.mg)}" width="${f2(W)}" height="${f2(H)}"/>`;
+    for (let c = 1; c < P.cols; c++) {
+      const x = P.mg + c * sx;
+      o += `<rect class="band" x="${f2(x)}" y="${f2(P.mg)}" width="${f2(P.ov)}" height="${f2(H)}"/><path class="seam" d="M${f2(x + P.ov / 2)} ${f2(P.mg)}v${f2(H)}"/>`;
+    }
+    for (let r = 1; r < P.rows; r++) {
+      const y = P.mg + r * sy;
+      o += `<rect class="band" x="${f2(P.mg)}" y="${f2(y)}" width="${f2(W)}" height="${f2(P.ov)}"/><path class="seam" d="M${f2(P.mg)} ${f2(y + P.ov / 2)}h${f2(W)}"/>`;
+    }
+    const fs = Math.min(sx, sy) * 0.14;
     for (const pg of P.pages) {
-      const x = pg.dx + P.mg, y = pg.dy + P.mg;
-      const fs = Math.min(P.uw, P.uh) * 0.16;
-      o += `<rect x="${f2(x)}" y="${f2(y)}" width="${f2(P.uw)}" height="${f2(P.uh)}"/><text x="${f2(x + fs * 0.35)}" y="${f2(y + fs * 1.05)}" font-size="${f2(fs)}">${pg.label}</text>`;
+      const x = pg.dx + P.mg + (pg.col ? P.ov : 0), y = pg.dy + P.mg + (pg.row ? P.ov : 0);
+      o += `<text x="${f2(x + fs * 0.3)}" y="${f2(y + fs * 1.05)}" font-size="${f2(fs)}">${pg.label}</text>`;
     }
     o += '</g>';
   }

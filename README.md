@@ -75,4 +75,4 @@ Copyright © 2026 K/Arifur Rahman. All rights reserved. See [LICENSE](LICENSE).
 
 ## Credits
 
-Barlow and Barlow Condensed fonts by Jeremy Tribby, SIL Open Font License (`src/renderer/fonts/OFL.txt`). Noto Sans and Noto Sans Bengali by the Noto Project Authors, SIL Open Font License (`src/core/fonts/OFL-Noto.txt`). Text shaping by [HarfBuzz](https://github.com/harfbuzz/harfbuzzjs) (MIT). PDF output by [jsPDF](https://github.com/parallax/jsPDF) (MIT).
+Barlow and Barlow Condensed fonts by Jeremy Tribby, SIL Open Font License (`src/ui/fonts/OFL.txt`). Noto Sans and Noto Sans Bengali by the Noto Project Authors, SIL Open Font License (`src/core/text/fonts/OFL-Noto.txt`). Text shaping by [HarfBuzz](https://github.com/harfbuzz/harfbuzzjs) (MIT). PDF output by [jsPDF](https://github.com/parallax/jsPDF) (MIT).
