@@ -12,8 +12,9 @@
 <div class="app" id="app" data-state="empty">
 
   <header class="bar">
+    <button class="icon-btn bar-menu" id="appMenu" type="button" title="Menu" aria-label="Menu" aria-haspopup="menu" data-icon="menu"></button>
     <button class="icon-btn drawer-toggle" id="tFiles" type="button" aria-controls="files" aria-expanded="false" title="Drawings" data-icon="list"><span class="sr">Drawings</span></button>
-    <div class="brand"><img src="../../assets/icon/icon.png" alt="" width="22" height="22"><span>DXF to PDF</span></div>
+    <div class="brand"><img src="../../assets/icon/icon-small.svg" alt="" width="24" height="24"><span>DXF to PDF</span></div>
     <div class="bar-actions">
       <button class="btn" id="bOpen" type="button">Open drawings</button>
       <button class="btn ghost hide-xs" id="bFolder" type="button">Open folder</button>
@@ -34,6 +35,13 @@
   </aside>
 
   <main class="canvas" id="canvas">
+    <div class="update-banner" id="updBanner" role="status" hidden>
+      <span class="upd-icon" data-icon="update" aria-hidden="true"></span>
+      <span id="updMsg"></span>
+      <span class="grow"></span>
+      <button class="btn small primary" id="updGo" type="button">Restart now</button>
+      <button class="btn small ghost" id="updLater" type="button">Later</button>
+    </div>
     <section class="welcome" id="welcome">
       <div class="sheet">
         <div class="zones" id="zones" aria-hidden="true"></div>
@@ -49,6 +57,7 @@
               <button class="btn" id="pickFolder" type="button">Choose a folder</button>
             </div>
             <label class="check"><input type="checkbox" id="autoOpen"> Open the PDF as soon as a single drawing is ready</label>
+            <p class="watch-hint">Or let it work on its own: <button class="link" id="watchFromWelcome" type="button">watch a folder</button>, and every DXF saved there becomes a PDF.</p>
             <p class="err" id="dropErr" role="alert"></p>
           </div>
           <div class="recent" id="recent" hidden>
@@ -162,6 +171,19 @@
         </div>
       </section>
 
+      <section class="auto-sec">
+        <h2>Automation</h2>
+        <div class="watch-box" id="watchBox" data-on="false">
+          <p class="watch-state" id="watchState">Watch a folder: every DXF saved there becomes a PDF beside it, with these settings, while this app is open.</p>
+          <div class="row2">
+            <button class="btn small" id="watchChoose" type="button" data-icon="folder">Choose folder…</button>
+            <button class="btn small ghost" id="watchStop" type="button" hidden>Stop watching</button>
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" id="autoUpdate"> Check for updates automatically</label>
+        <p class="hint">Right-click any .dxf file or folder in Windows Explorer and choose <b>Convert to PDF</b> to use these same settings without opening the app.</p>
+      </section>
+
       <section>
         <h2>This drawing</h2>
         <dl class="facts" id="facts"></dl>
@@ -191,6 +213,7 @@
     <span id="sMsg" role="status" aria-live="polite">Ready</span>
     <button type="button" class="link" id="sReveal" hidden>Show in folder</button>
     <span class="grow"></span>
+    <button class="cell watch-cell" id="sWatch" type="button" hidden></button>
     <span class="cell" id="sCursor"></span>
     <span class="cell" id="sSheet"></span>
     <span class="cell" id="sSize"></span>
@@ -198,6 +221,20 @@
   </footer>
 </div>
 <div class="scrim" id="scrim" hidden></div>
+<div class="tour" id="tour" hidden>
+  <div class="tour-spot" id="tourSpot"></div>
+  <div class="tour-card" id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourText">
+    <p class="tour-step" id="tourStep"></p>
+    <h2 id="tourTitle"></h2>
+    <p id="tourText"></p>
+    <div class="tour-actions">
+      <button class="link" id="tourSkip" type="button">Skip tour</button>
+      <span class="grow"></span>
+      <button class="btn small" id="tourBack" type="button">Back</button>
+      <button class="btn small primary" id="tourNext" type="button">Next</button>
+    </div>
+  </div>
+</div>
 
 <script src="../models/settings.js"></script>
 <script src="../models/presets.js"></script>
@@ -212,6 +249,9 @@
 <script src="panels/layers.js"></script>
 <script src="panels/title-block.js"></script>
 <script src="panels/presets.js"></script>
+<script src="chrome.js"></script>
+<script src="panels/automation.js"></script>
+<script src="tour.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

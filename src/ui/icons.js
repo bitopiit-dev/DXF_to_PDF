@@ -13,6 +13,9 @@
     save: '<path d="M4 3h9.5L17 6.5V17H3V3z"/><path d="M6.5 3v4h6V3M6 17v-5h8v5"/>',
     trash: '<path d="M4 6h12M8 6V3.8h4V6M5.6 6l.9 11h7l.9-11"/>',
     list: '<path d="M3 5h14M3 10h14M3 15h9"/>',
+    menu: '<path d="M3.5 6h13M3.5 10h13M3.5 14h13"/>',
+    folder: '<path d="M2.5 6.2V15a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H10L8.3 5H3.5a1 1 0 0 0-1 1.2z"/><circle cx="10" cy="11.5" r="1.6"/>',
+    update: '<path d="M15.5 8.5A5.8 5.8 0 0 0 5 6.2M4.5 11.5A5.8 5.8 0 0 0 15 13.8"/><path d="M4.6 3.4v3h3M15.4 16.6v-3h-3"/>',
     sliders: '<path d="M4 5h12M4 10h12M4 15h12"/><circle cx="8" cy="5" r="1.8"/><circle cx="13" cy="10" r="1.8"/><circle cx="7" cy="15" r="1.8"/>',
   };
   App.icon = name => `<svg class="ic" viewBox="0 0 20 20" aria-hidden="true">${P[name] || ''}</svg>`;

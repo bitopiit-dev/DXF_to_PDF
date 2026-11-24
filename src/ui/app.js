@@ -207,12 +207,14 @@
     if (opts.theme === 'system') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', opts.theme);
     App.rulers.draw();
+    if (App.chrome) App.chrome.syncTitleBar();
   }
   App.seg('theme', 'theme', () => { App.persist(); applyTheme(); });
 
   desktop.onMenu(cmd => ({
     open: () => pick(false), 'open-folder': () => pick(true), 'open-pdf': openPdf, save: savePdf,
     'save-all': saveAll, combine, close: () => S.sel && App.queue.close(S.sel),
+    watch: () => App.automation.choose(), tour: () => App.tour.start(true),
     fit: App.view.fit, 'zoom-in': () => App.view.zoomAt(1.25), 'zoom-out': () => App.view.zoomAt(0.8), actual: App.view.actual,
   }[cmd] || (() => {}))());
 

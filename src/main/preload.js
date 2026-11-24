@@ -8,6 +8,19 @@ const listen = (channel, cb) => {
 };
 
 contextBridge.exposeInMainWorld('desktop', {
+  platform: process.platform,
+  showMenu: (x, y) => ipcRenderer.invoke('app:menu', { x, y }),
+  setTitleBar: colors => ipcRenderer.invoke('app:titlebar', colors),
+  rememberSettings: settings => ipcRenderer.invoke('settings:remember', settings),
+  watchGet: () => ipcRenderer.invoke('watch:get'),
+  watchChoose: () => ipcRenderer.invoke('watch:choose'),
+  watchResume: () => ipcRenderer.invoke('watch:resume'),
+  watchStop: () => ipcRenderer.invoke('watch:stop'),
+  onWatch: cb => listen('watch:event', cb),
+  updateAuto: on => ipcRenderer.invoke('update:auto', on),
+  updateCheck: () => ipcRenderer.invoke('update:check'),
+  updateInstall: () => ipcRenderer.invoke('update:install'),
+  onUpdate: cb => listen('update:state', cb),
   info: () => ipcRenderer.invoke('app:info'),
   recent: () => ipcRenderer.invoke('app:recent'),
   reveal: p => ipcRenderer.invoke('app:reveal', p),

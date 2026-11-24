@@ -37,15 +37,21 @@ jobs:
         include:
           - os: windows-latest   # one installer for x64, 32-bit and ARM PCs, plus portable x64 and 32-bit
             cmd: dist:win
-            files: dist/*.exe
+            files: |
+              dist/*.exe
+              dist/latest.yml
+              dist/*.exe.blockmap
           - os: ubuntu-latest    # AppImage and .deb for x64 and ARM64
             cmd: dist:linux
             files: |
               dist/*.AppImage
               dist/*.deb
+              dist/latest-linux*.yml
           - os: macos-latest     # universal: Intel and Apple silicon
             cmd: dist:mac
-            files: dist/*.dmg
+            files: |
+              dist/*.dmg
+              dist/latest-mac.yml
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
