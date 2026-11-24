@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Simplest form for 16 px: tile, page, folded corner and one thick curve. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2ad49a"/><stop offset=".55" stop-color="#0d8f8a"/><stop offset="1" stop-color="#0b3d6b"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="url(#tile)"/>
+  <g transform="rotate(-8 512 520)">
+    <path d="M250 170H640L800 330V880H250Z" fill="#ffffff"/>
+    <path d="M640 170V330H800Z" fill="#ff7a1a"/>
+    <path d="M340 430C380 700 660 560 700 790" fill="none" stroke="#0e2236" stroke-width="110" stroke-linecap="round"/>
+  </g>
+</svg>

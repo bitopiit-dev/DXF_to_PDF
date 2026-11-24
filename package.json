@@ -43,6 +43,7 @@
     "files": [
       "src/**/*",
       "assets/icon/icon.png",
+      "assets/icon/icon-small.svg",
       "package.json",
       "LICENSE",
       "!node_modules/harfbuzzjs/dist/harfbuzz-subset.wasm"
