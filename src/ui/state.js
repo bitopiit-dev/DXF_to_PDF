@@ -22,7 +22,12 @@ window.App = (() => {
   }
   const kb = n => n > 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
   const len = mm => mm >= 1000 ? +(mm / 1000).toPrecision(4) + ' m' : mm >= 100 ? Math.round(mm) + ' mm' : +mm.toPrecision(3) + ' mm';
-  const engineOpts = d => Settings.toEngine(opts, d ? window.Models.layerOverrides.toEngine(d.overrides) : undefined);
+  const engineOpts = d => {
+    const e = Settings.toEngine(opts, d ? window.Models.layerOverrides.toEngine(d.overrides) : undefined);
+    // garment patterns: the sizes hidden for this drawing, and whether each size gets its own pages
+    if (d && d.garment) e.sizes = { hide: [...(d.hideSizes || [])], split: !!opts.splitSizes };
+    return e;
+  };
 
   // a setting changed in some panel: remember it, tell the other panels, convert again
   function changed({ delay = 60, fresh = true } = {}) { persist(); emit('settings'); App.convert({ fresh, delay }); }

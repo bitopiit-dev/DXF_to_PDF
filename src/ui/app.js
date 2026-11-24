@@ -10,7 +10,7 @@
     for (const r of results) {
       const dup = S.docs.find(d => d.path === r.path && !d.error && !r.error);
       if (dup) { desktop.close(r.id); first = first || dup.id; continue; }
-      S.docs.push({ ...r, hidden: new Set(r.hidden || []), overrides: {}, result: null, state: r.error ? 'error' : 'new' });
+      S.docs.push({ ...r, hidden: new Set(r.hidden || []), hideSizes: new Set(), overrides: {}, result: null, state: r.error ? 'error' : 'new' });
       first = first || r.id;
     }
     if (!S.docs.length) return;

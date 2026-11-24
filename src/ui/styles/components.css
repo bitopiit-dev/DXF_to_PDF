@@ -335,3 +335,13 @@ h2{font:600 16px/1.2 var(--cond);letter-spacing:.01em}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
+
+/* ---------- pattern (garment) panel ---------- */
+.garment-sec .sub-label{margin:12px 0 6px;color:var(--muted)}
+.sizes{display:flex;flex-wrap:wrap;gap:6px}
+.size-chip{min-height:30px;padding:0 12px;border:1px solid var(--rule);border-radius:15px;background:var(--raise);color:var(--muted);
+  font:600 14px/1 var(--cond);letter-spacing:.02em;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease}
+.size-chip[aria-pressed="true"]{background:var(--chosen);border-color:var(--chosen);color:var(--chosen-ink)}
+.size-chip[aria-pressed="false"]{text-decoration:line-through}
+.size-chip:hover{border-color:var(--ink)}
+.garment-sec .check{margin-top:10px}

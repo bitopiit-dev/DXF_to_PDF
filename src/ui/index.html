@@ -100,14 +100,25 @@
         <p class="field-err" id="presetErr" role="alert"></p>
       </section>
 
+      <section class="garment-sec" id="garmentSec" hidden>
+        <div class="sec-head"><h2>Pattern</h2><span class="count" id="garmentVendor"></span></div>
+        <dl class="facts" id="garmentFacts"></dl>
+        <p class="sub-label" id="sizesLabel">Sizes to print</p>
+        <div class="sizes" id="sizes" role="group" aria-labelledby="sizesLabel"></div>
+        <label class="check"><input type="checkbox" id="splitSizes"> Each size on its own pages</label>
+      </section>
+
       <section>
         <h2>Sheet</h2>
         <label class="field"><span>Paper</span>
           <select id="size">
             <option>A4</option><option>A3</option><option>A2</option><option>A1</option><option>A0</option>
             <option>Letter</option><option>Legal</option><option>Tabloid</option>
+            <option value="Roll">Plotter roll</option>
           </select>
         </label>
+        <label class="field" id="rollField" hidden><span>Roll width</span><span class="unit-input"><input id="rollWidth" type="number" min="200" max="3000" step="1" list="rolls"><i>mm</i></span></label>
+        <datalist id="rolls"><option value="610"></option><option value="914"></option><option value="1067"></option><option value="1600"></option><option value="1830"></option></datalist>
         <div class="field stack"><span id="lOrient">Orientation</span>
           <div class="seg" id="orient" role="radiogroup" aria-labelledby="lOrient">
             <button type="button" role="radio" data-v="auto">Auto</button>
@@ -248,6 +259,7 @@
 <script src="panels/sheet.js"></script>
 <script src="panels/layers.js"></script>
 <script src="panels/title-block.js"></script>
+<script src="panels/garment.js"></script>
 <script src="panels/presets.js"></script>
 <script src="chrome.js"></script>
 <script src="panels/automation.js"></script>
