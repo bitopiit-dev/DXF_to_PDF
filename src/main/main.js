@@ -177,7 +177,10 @@ function startGui() {
     text: await pool.status().catch(e => ({ shaping: false, error: e.message })),
   }));
   ipcMain.handle('app:recent', () => state.recent.slice(0, 8).map(p => ({ path: p, name: path.basename(p), dir: path.dirname(p) })));
-  ipcMain.handle('app:reveal', (_e, p) => shell.showItemInFolder(p));
+  // automated tests set DXF2PDF_TEST so the app never launches other programs (a PDF viewer left running
+  // would keep the test runner waiting forever)
+  const external = !process.env.DXF2PDF_TEST;
+  ipcMain.handle('app:reveal', (_e, p) => { if (external) shell.showItemInFolder(p); });
 
   ipcMain.handle('files:pick', async (_e, folder) => {
     const r = await dialog.showOpenDialog(win, folder
@@ -273,7 +276,7 @@ function startGui() {
     const dir = path.join(os.tmpdir(), 'dxf-to-pdf');
     await fs.mkdir(dir, { recursive: true });
     const file = await writePdf(path.join(dir, safeName(d.name)), d.pdf);
-    const err = await shell.openPath(file);
+    const err = external ? await shell.openPath(file) : '';
     return err ? { ok: false, error: err } : { ok: true, path: file };
   });
 
