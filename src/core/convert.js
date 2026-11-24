@@ -3,6 +3,7 @@
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const DXF = require('./dxf-core.js');
+const TB = require('./layout/title-block');
 const { jsPDF } = require('jspdf');
 
 const MAX_SHEETS = 400;
@@ -20,8 +21,8 @@ function init(opts = {}) {
       m.setFont('helvetica', 'normal');
       DXF.setMeasure(s => m.getStringUnitWidth(s));
       try {
-        const mod = await import(pathToFileURL(path.join(HERE, 'text-shaper.mjs')).href);
-        const shaper = await mod.createShaper({ fontsDir: opts.fontsDir || path.join(HERE, 'fonts'), harfbuzzEntry: opts.harfbuzzEntry || HB_ENTRY });
+        const mod = await import(pathToFileURL(path.join(HERE, 'text', 'shaper.mjs')).href);
+        const shaper = await mod.createShaper({ fontsDir: opts.fontsDir || path.join(HERE, 'text', 'fonts'), harfbuzzEntry: opts.harfbuzzEntry || HB_ENTRY });
         DXF.setShaper(shaper);
         return { shaping: true };
       } catch (e) {
@@ -62,13 +63,24 @@ function open(buf) {
 
 function prepare(dxf, hidden, opts) {
   const { f, ext } = DXF.build(dxf, hidden instanceof Set ? hidden : new Set(hidden || []));
+  // per-layer colour and line-weight overrides from the Layers panel or a preset
+  const ov = opts.layers || {};
+  if (Object.keys(ov).length) for (const p of f.prims) {
+    const o = ov[p.layer];
+    if (!o) continue;
+    if (o.color) p.c = o.color;
+    if (o.lw > 0 && p.lw) p.lw = Math.max(0.05, p.lw * o.lw);
+  }
   const objects = Object.values(f.used).reduce((a, b) => a + Math.max(0, b), 0);
   if (!ext) return { f, objects, empty: true };
   const units = opts.units && opts.units !== 'auto' ? opts.units : null;
   const unitMM = DXF.unitMM(dxf, units);
   const P = DXF.plan(f.prims, ext, { size: opts.size || 'A3', orient: opts.orient || 'auto', ink: opts.ink || 'color',
     margin: opts.margin != null ? +opts.margin : 10, overlap: opts.overlap != null ? +opts.overlap : 10,
-    scale: parseScale(opts.scale), unitMM });
+    scale: parseScale(opts.scale), unitMM,
+    reserve: opts.titleBlock && opts.titleBlock.enabled ? TB.size : null });
+  P.titleBlock = opts.titleBlock || null;
+  P.title = opts.title || '';
   return { f, ext, P, objects, unitMM, unitsGuessed: !units && !DXF.unitName(dxf) };
 }
 
@@ -97,7 +109,7 @@ function describe(dxf, prep, opts) {
 
 // Renders one drawing. Returns { svg, pdf (ArrayBuffer), objects, notes, info } or { error }.
 function render(dxf, hidden, opts = {}, { title, svg = true, pdf = true } = {}) {
-  const prep = prepare(dxf, hidden, opts);
+  const prep = prepare(dxf, hidden, { ...opts, title: opts.title || title });
   if (prep.empty) return { empty: true, objects: prep.objects, notes: ['No visible objects. Turn on some layers, or check that the drawing has content in model space.'] };
   const d = describe(dxf, prep, opts);
   if (prep.P.sheetCount > MAX_SHEETS) {
@@ -114,7 +126,7 @@ function combine(items, title) {
   let doc = null;
   const skipped = [];
   for (const it of items) {
-    const prep = prepare(it.dxf, it.hidden, it.opts || {});
+    const prep = prepare(it.dxf, it.hidden, { ...(it.opts || {}), title: it.title });
     if (prep.empty || prep.P.sheetCount > MAX_SHEETS) { skipped.push(it.title); continue; }
     doc = DXF.toPDF(prep.P, jsPDF, title, doc);
   }
