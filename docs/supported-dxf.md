@@ -18,6 +18,8 @@
 | Layers | Off, frozen and Defpoints hidden by default; toggle in the app |
 | Non-Latin text | Bangla, Greek, Cyrillic and symbols shaped with HarfBuzz and drawn as vector outlines |
 | Units and scale | `$INSUNITS` read for exact scales (mm, cm, m, in, ft, and others); unitless drawings are treated as mm |
+| Garment patterns | AAMA/ASTM exports (Lectra, Gerber, Optitex): units from the `UNITS:` label, size selection for graded nests, drill holes (layer 13) as drill marks, AAMA layer names, files without a layer table |
+| Paper | ISO A4–A0, US Letter, Legal, Tabloid, and plotter rolls of any width (5 m per page) |
 | Tiling | At an exact scale, drawings larger than the paper split into overlapping, labelled sheets (up to 400) |
 
 ## Not yet

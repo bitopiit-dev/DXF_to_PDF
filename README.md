@@ -36,6 +36,18 @@ Full list and current limits: [docs/supported-dxf.md](docs/supported-dxf.md).
 
 In the preview, drag to move, scroll or pinch to zoom, double-click to fit. The floating toolbar zooms and switches the grid, rulers and sheet outlines on and off. Ctrl+1 shows the sheet at about real size. The rulers show paper millimetres, and the status bar shows the cursor position in drawing units.
 
+### Garment patterns (Lectra, Gerber, Optitex and other AAMA/ASTM DXF)
+
+Export from Modaris, Diamino or your pattern system as **DXF (AAMA or ASTM)**; the native Lectra files can't be read by any other program. The app recognises a pattern file from its labels and shows a **Pattern** panel:
+
+- units come from the file's `UNITS: METRIC/ENGLISH` label, so inch patterns print at the right size without guessing
+- the design number, piece names and master size are listed
+- for graded nests, pick which sizes to print, or tick **Each size on its own pages** for one PDF with every size separately
+- drill holes (AAMA layer 13) print as drill marks; grading points stay invisible
+- when a file spreads its geometry over AAMA layers, the Layers panel names them, for example **Sew line (14)**, so you can hide sew lines in one click
+
+Choose **Plotter roll** as the paper for markers: set the roll width (610 to 1830 mm presets, or any width); the length follows the marker, and markers longer than 5 m continue on the next page. The **Marker 1:1 on 914 mm roll** and **A4 tiles 1:1** presets are ready-made starting points.
+
 ### Working without opening the app
 
 - **Right-click in Windows Explorer:** after installing with the setup file, right-click any `.dxf` file and choose **Convert to PDF**, or right-click a folder and choose **Convert DXF drawings to PDF**. The PDF is saved next to the drawing with the settings you last used in the app, and a notification tells you when it's done. On Windows 11 these entries are under **Show more options**.

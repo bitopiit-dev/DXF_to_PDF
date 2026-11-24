@@ -20,7 +20,8 @@ Desktop app (Electron) that converts DXF drawings to vector PDF, fitted or at an
   - `panels/` — `queue.js`, `sheet.js` (paper, scale, smart scale hint), `layers.js` (eye, colour, line weight), `title-block.js`, `presets.js`.
   - `app.js` — wiring: opening, converting, painting results, saving, menus. `icons.js` — inline SVG icons.
   - `styles/tokens.css` (colours, light and dark) and `styles/components.css`.
-- `src/ui/chrome.js` (title bar, menu button, update banner, motion), `src/ui/panels/automation.js` (watch folder, update switch, remembering settings), `src/ui/tour.js` (first-run tour).
+- `src/core/garment.js` — garment pattern detection (labels such as `PIECE NAME:`, `Size:`, `UNITS:`), size filtering through hidden block keys, AAMA layer names. Test with the synthetic `tests/fixtures/aama-pattern.dxf`; never commit real customer pattern files.
+- `src/ui/panels/garment.js` (Pattern panel), `src/ui/chrome.js` (title bar, menu button, update banner, motion), `src/ui/panels/automation.js` (watch folder, update switch, remembering settings), `src/ui/tour.js` (first-run tour).
 - Releases must include `latest*.yml` and `.blockmap` files (CI uploads them); without them installed apps cannot update.
 - `tests/` — `core.test.js` (unit, `node --test`) with fixtures in `tests/fixtures/`; `e2e/app.e2e.test.js` drives the real app with Playwright.
 - `.github/workflows/build.yml` — unit + e2e tests on every push/PR; on `v*` tags builds Windows (x64, ia32, arm64), Linux (AppImage, deb; x64, arm64) and macOS (universal) and attaches them to a release.
