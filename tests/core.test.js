@@ -86,6 +86,19 @@ test('rejects binary DXF and non-DXF input with clear errors', () => {
 /* ---------- units, true scale and tiling ---------- */
 
 const open = name => C.open(fs.readFileSync(path.join(__dirname, 'fixtures', name)));
+// page content is Flate-compressed; inflate every stream so tests can read the drawing operators
+const pdfContent = buf => {
+  const zlib = require('node:zlib'), b = Buffer.from(buf), out = [];
+  let i = 0;
+  while ((i = b.indexOf('stream', i)) >= 0) {
+    let start = i + 6; if (b[start] === 13) start++; if (b[start] === 10) start++;
+    const end = b.indexOf('endstream', start);
+    if (end < 0) break;
+    try { out.push(zlib.inflateSync(b.subarray(start, end)).toString('latin1')); } catch { /* not compressed */ }
+    i = end + 9;
+  }
+  return out.join('\n');
+};
 const pdfPages = buf => (Buffer.from(buf).toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
 
 test('reads drawing units from $INSUNITS', () => {
@@ -156,7 +169,7 @@ test('Bangla text is shaped into vector outlines instead of "?"', async () => {
   const sh = DXF.needsShaping('কক্ষ') && C.DXF;
   assert.ok(sh);
   const r = C.render(o.dxf, o.hidden, { size: 'A4' });
-  assert.ok(!Buffer.from(r.pdf).toString('latin1').includes('(? ??'), 'no question marks for Bangla');
+  assert.ok(!/\(\?+[ ?]*\)/.test(pdfContent(r.pdf)), 'no question marks for Bangla');
   assert.match(r.notes.join(' '), /non-Latin text drawn as vector outlines/);
 });
 
@@ -166,4 +179,78 @@ test('several drawings combine into one PDF', async () => {
   const r = C.combine(items, 'All');
   assert.strictEqual(pdfPages(r.pdf), 3);
   assert.deepStrictEqual(r.skipped, []);
+});
+
+/* ---------- title block, layer overrides, presets, batch ---------- */
+
+const Settings = require('../src/models/settings.js');
+const Presets = require('../src/models/presets.js');
+const Overrides = require('../src/models/layer-overrides.js');
+const { runBatch } = require('../src/core/batch.js');
+
+test('title block prints on every sheet and keeps clear of a fitted drawing', async () => {
+  await C.init();
+  const o = open('scale-mm.dxf');
+  const tb = { enabled: true, project: 'Bitopi Tower', drawnBy: 'K/Arifur Rahman', date: '2026-11-24', stamp: 'Preliminary' };
+  const fit = C.render(o.dxf, o.hidden, { size: 'A3', titleBlock: tb }, { title: 'scale-mm' });
+  assert.match(fit.svg, /class="title-block"/);
+  assert.match(fit.svg, /Bitopi Tower/);
+  assert.match(fit.svg, /Fit, about 1:/);
+  const pdf = pdfContent(fit.pdf);
+  assert.match(pdf, /Bitopi Tower/);
+  assert.match(pdf, /Preliminary/);
+  const { f, ext } = DXF.build(o.dxf, new Set());
+  const TB = require('../src/core/layout/title-block.js');
+  const P = DXF.plan(f.prims, ext, { size: 'A3', reserve: TB.size });
+  const box = TB.layout(P, 0, tb, 'x').box;
+  const right = P.X(ext.maxx), bottom = P.Y(ext.miny);
+  assert.ok(right <= box.x + 0.01 || bottom <= box.y + 0.01, 'drawing does not run under the title block');
+  const tiled = C.render(o.dxf, o.hidden, { size: 'A4', scale: '1:1', titleBlock: tb }, { title: 'scale-mm', pdf: false });
+  assert.strictEqual((tiled.svg.match(/class="title-block"/g) || []).length, tiled.info.sheets, 'one per sheet');
+  assert.match(tiled.svg, /21 of 21 \(C7\)/);
+});
+
+test('a Bangla project name in the title block is shaped, not "?"', async () => {
+  await C.init();
+  const o = open('scale-mm.dxf');
+  const r = C.render(o.dxf, o.hidden, { size: 'A3', titleBlock: { enabled: true, project: 'বিতপি টাওয়ার' } }, { svg: false });
+  const pdf = pdfContent(r.pdf);
+  assert.ok(!/\(\?+\)/.test(pdf), 'no question marks');
+  assert.match(pdf, / c\n/, 'glyph outlines drawn as curves');
+});
+
+test('layer colour and line-weight overrides reach the drawing', async () => {
+  await C.init();
+  const o = open('linetypes-hatch.dxf');
+  const layers = Overrides.toEngine({ CENTER: { color: '#FF00AA', lw: 2 }, OTHER: { color: 'bad', lw: 1 } });
+  assert.deepStrictEqual(Object.keys(layers), ['CENTER'], 'no-op and invalid overrides are dropped');
+  const base = C.render(o.dxf, o.hidden, { size: 'A4' });
+  const over = C.render(o.dxf, o.hidden, { size: 'A4', layers });
+  assert.ok(!base.svg.includes('#ff00aa') && over.svg.includes('#ff00aa'), 'colour override');
+  const { f } = DXF.build(o.dxf, new Set());
+  const lw = f.prims.find(p => p.layer === 'CENTER' && p.k === 'p').lw;
+  assert.match(over.svg, new RegExp(`stroke="#ff00aa" stroke-width="${lw * 2}"`), 'line weight doubled');
+});
+
+test('settings are validated and presets keep project and date', () => {
+  const n = Settings.normalize({ size: 'B9', margin: 99, scale: 'oops', ink: 'black' });
+  assert.deepStrictEqual([n.size, n.margin, n.scale, n.ink], ['A3', 40, '1:100', 'black']);
+  const cur = Settings.normalize({ titleBlock: { enabled: false, project: 'Job 42', date: '2026-01-01' } });
+  const eng = Presets.BUILTIN.find(p => p.name.startsWith('A3 1:50'));
+  const after = Settings.applyPreset(cur, eng.settings);
+  assert.strictEqual(after.scale, '1:50');
+  assert.strictEqual(after.titleBlock.enabled, true);
+  assert.strictEqual(after.titleBlock.project, 'Job 42');
+  assert.ok(Settings.same(after, Settings.applyPreset(after, eng.settings)));
+  assert.strictEqual(Presets.validName('A4 fit, black and white'), 'That name belongs to a built-in preset.');
+  assert.strictEqual(Settings.toEngine({ scaleMode: 'fit' }).scale, 'fit');
+  assert.match(Settings.toEngine({ titleBlock: { enabled: true } }).titleBlock.date, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test('batch keeps going past a failing drawing and reports progress', async () => {
+  const seen = [];
+  const r = await runBatch([1, 2, 3, 4], async n => { if (n === 3) throw new Error('bad'); return n * 2; }, { concurrency: 2, onProgress: p => seen.push(p.done) });
+  assert.deepStrictEqual(r.done.map(d => d.result).sort(), [2, 4, 8]);
+  assert.strictEqual(r.failed[0].error, 'bad');
+  assert.deepStrictEqual(seen, [1, 2, 3, 4]);
 });
