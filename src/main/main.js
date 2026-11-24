@@ -20,6 +20,9 @@ if (isCli) {
 
 function startGui() {
   const { Pool } = require('./pool');
+  const store = require('./store');
+  const Presets = require('../models/presets');
+  const { runBatch } = require('../core/batch');
   let win = null;
   let pool = null;
   const docs = new Map(); // id -> { path, name, pdf (ArrayBuffer of the last render) }
@@ -77,7 +80,7 @@ function startGui() {
     });
     if (state.maximized) win.maximize();
     win.once('ready-to-show', () => win.show());
-    win.loadFile(path.join(ROOT, 'src', 'renderer', 'index.html'));
+    win.loadFile(path.join(ROOT, 'src', 'ui', 'index.html'));
     const remember = () => {
       if (!win || win.isMinimized()) return;
       state.maximized = win.isMaximized();
@@ -172,6 +175,19 @@ function startGui() {
     return r.canceled ? [] : addPaths(r.filePaths);
   });
   ipcMain.handle('files:add', (_e, paths) => addPaths(paths));
+
+  /* presets: built-in ones first, then the user's own */
+  const allPresets = () => [...Presets.BUILTIN.map(p => ({ ...p })), ...store.list()];
+  ipcMain.handle('presets:list', () => allPresets());
+  ipcMain.handle('presets:save', (_e, { name, settings }) => {
+    const problem = Presets.validName(name);
+    if (problem) return { ok: false, error: problem };
+    try { store.save(String(name).trim(), settings); return { ok: true, presets: allPresets() }; } catch (err) { return { ok: false, error: err.message }; }
+  });
+  ipcMain.handle('presets:delete', (_e, name) => {
+    if (Presets.isBuiltin(name)) return { ok: false, error: 'Built-in presets cannot be deleted.' };
+    store.remove(name); return { ok: true, presets: allPresets() };
+  });
   ipcMain.handle('doc:close', (_e, id) => { docs.delete(id); pool.close(id); });
 
   ipcMain.handle('doc:render', async (_e, { id, hidden, opts }) => {
@@ -215,22 +231,17 @@ function startGui() {
       if (r.canceled || !r.filePaths[0]) return { canceled: true };
       dir = r.filePaths[0];
     }
-    const done = [], failed = [];
-    let n = 0;
-    await Promise.all(items.map(async it => {
+    const r = await runBatch(items, async it => {
       const d = docs.get(it.id);
-      try {
-        const r = await renderPdf(it.id, it.hidden, opts);
-        if (!r.pdf) throw new Error(r.error || 'Nothing to draw.');
-        const file = await writePdf(path.join(dir || path.dirname(d.path), safeName(d.name)), r.pdf);
-        done.push({ id: it.id, path: file });
-        e.sender.send('batch:progress', { id: it.id, ok: true, path: file, done: ++n, total: items.length });
-      } catch (err) {
-        failed.push({ id: it.id, error: err.message });
-        e.sender.send('batch:progress', { id: it.id, ok: false, error: err.message, done: ++n, total: items.length });
-      }
-    }));
-    return { done, failed, dir };
+      if (!d) throw new Error('This drawing is no longer open.');
+      const out = await renderPdf(it.id, it.hidden, { ...opts, layers: it.layers });
+      if (!out.pdf) throw new Error(out.error || 'Nothing to draw.');
+      return writePdf(path.join(dir || path.dirname(d.path), safeName(d.name)), out.pdf);
+    }, {
+      concurrency: pool.size,
+      onProgress: p => e.sender.send('batch:progress', { id: p.item.id, ok: p.ok, error: p.error, path: p.result, done: p.done, total: p.total }),
+    });
+    return { done: r.done.map(x => ({ id: x.item.id, path: x.result })), failed: r.failed.map(x => ({ id: x.item.id, error: x.error })), dir };
   });
 
   ipcMain.handle('batch:combine', async (_e, { items, opts }) => {
@@ -244,7 +255,7 @@ function startGui() {
     for (const it of items) {
       const d = docs.get(it.id);
       if (!d) continue;
-      payload.push({ id: it.id, hidden: it.hidden, opts, title: d.name.replace(/\.dxf$/i, ''), data: await fs.readFile(d.path).catch(() => null) });
+      payload.push({ id: it.id, hidden: it.hidden, opts: { ...opts, layers: it.layers }, title: d.name.replace(/\.dxf$/i, ''), data: await fs.readFile(d.path).catch(() => null) });
     }
     const out = await pool.combine(payload, path.basename(r.filePath, '.pdf'));
     if (!out.pdf) return { ok: false, error: 'None of these drawings has anything to print at these settings.' };

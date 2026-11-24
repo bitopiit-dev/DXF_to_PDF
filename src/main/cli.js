@@ -3,6 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const C = require('../core/convert.js');
+const Settings = require('../models/settings');
+const Presets = require('../models/presets');
 
 const HELP = `DXF to PDF, command line
 
@@ -16,10 +18,12 @@ const HELP = `DXF to PDF, command line
   --ink color|black                             (default color)
   --margin <mm>                                 (default 10)
   --overlap <mm>                                (overlap between tiled sheets, default 10)
+  --preset "<name>"                             start from a saved or built-in preset; other options override it
+  --project, --drawn-by, --stamp "<text>"       add a title block with these fields
 
 Example: "DXF to PDF" --convert plans --out pdf --scale 1:100 --size A1`;
 
-const VALUE_FLAGS = ['out', 'combine', 'size', 'orient', 'scale', 'units', 'ink', 'margin', 'overlap'];
+const VALUE_FLAGS = ['out', 'combine', 'size', 'orient', 'scale', 'units', 'ink', 'margin', 'overlap', 'preset', 'project', 'drawn-by', 'stamp'];
 
 function parseArgs(argv) {
   const opts = {}, inputs = [];
@@ -28,7 +32,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === '--convert') { mode = 'in'; continue; }
     if (a === '--help' || a === '-h') { opts.help = true; continue; }
-    const m = a.match(/^--([a-z]+)(?:=(.*))?$/);
+    const m = a.match(/^--([a-z-]+)(?:=(.*))?$/);
     if (m && VALUE_FLAGS.includes(m[1])) { opts[m[1]] = m[2] != null ? m[2] : argv[++i]; mode = null; continue; }
     if (m) continue; // Electron/Chromium switches
     if (mode === 'in') inputs.push(a);
@@ -54,7 +58,20 @@ async function run(argv, log = console.log, err = console.error) {
   const st = await C.init();
   if (!st.shaping) err(`Bangla text support unavailable: ${st.error}`);
   const files = expand(inputs);
-  const render = { size: opts.size, orient: opts.orient, scale: opts.scale, units: opts.units, ink: opts.ink, margin: opts.margin, overlap: opts.overlap };
+  let base = Settings.normalize({});
+  if (opts.preset) {
+    let user = [];
+    try { user = require('./store').list(); } catch { /* no saved presets */ }
+    const p = Presets.find([...Presets.BUILTIN, ...user], opts.preset);
+    if (!p) { err(`No preset called "${opts.preset}". Built-in: ${Presets.BUILTIN.map(b => b.name).join('; ')}`); return 2; }
+    base = Settings.applyPreset(base, p.settings);
+  }
+  const eng = Settings.toEngine(base);
+  const pickv = (k, d) => (opts[k] != null ? opts[k] : d);
+  const tbOn = opts.project != null || opts['drawn-by'] != null || opts.stamp != null;
+  const tb = tbOn || eng.titleBlock ? { enabled: true, project: pickv('project', ''), drawnBy: pickv('drawn-by', base.titleBlock.drawnBy), stamp: pickv('stamp', base.titleBlock.stamp), date: Settings.today() } : null;
+  const render = { size: pickv('size', eng.size), orient: pickv('orient', eng.orient), scale: pickv('scale', eng.scale), units: pickv('units', eng.units),
+    ink: pickv('ink', eng.ink), margin: pickv('margin', eng.margin), overlap: pickv('overlap', eng.overlap), titleBlock: tb };
   if (opts.out) fs.mkdirSync(opts.out, { recursive: true });
   let failed = 0;
   const combined = [];
