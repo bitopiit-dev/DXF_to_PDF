@@ -5,15 +5,14 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DXF to PDF</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="styles/components.css">
 </head>
 <body>
 <div class="app" id="app" data-state="empty">
 
   <header class="bar">
-    <button class="icon-btn drawer-toggle" id="tFiles" type="button" aria-controls="files" aria-expanded="false" title="Drawings">
-      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h9"/></svg><span class="sr">Drawings</span>
-    </button>
+    <button class="icon-btn drawer-toggle" id="tFiles" type="button" aria-controls="files" aria-expanded="false" title="Drawings" data-icon="list"><span class="sr">Drawings</span></button>
     <div class="brand"><img src="../../assets/icon/icon.png" alt="" width="22" height="22"><span>DXF to PDF</span></div>
     <div class="bar-actions">
       <button class="btn" id="bOpen" type="button">Open drawings</button>
@@ -25,9 +24,7 @@
       <button type="button" role="radio" data-v="light">Light</button>
       <button type="button" role="radio" data-v="dark">Dark</button>
     </div>
-    <button class="icon-btn drawer-toggle" id="tOut" type="button" aria-controls="out" aria-expanded="false" title="PDF settings">
-      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5h12M4 10h12M4 15h12"/><circle cx="8" cy="5" r="1.8"/><circle cx="13" cy="10" r="1.8"/><circle cx="7" cy="15" r="1.8"/></svg><span class="sr">PDF settings</span>
-    </button>
+    <button class="icon-btn drawer-toggle" id="tOut" type="button" aria-controls="out" aria-expanded="false" title="PDF settings" data-icon="sliders"><span class="sr">PDF settings</span></button>
   </header>
 
   <aside class="files panel" id="files" aria-label="Drawings">
@@ -70,12 +67,7 @@
         <div class="paper" id="paper"></div>
         <div class="view-msg" id="viewMsg" hidden></div>
       </div>
-      <div class="zoom" role="group" aria-label="Zoom">
-        <button type="button" id="zOut" title="Zoom out (Ctrl −)" aria-label="Zoom out">−</button>
-        <button type="button" id="zPct" title="Actual size (Ctrl 1)">100%</button>
-        <button type="button" id="zIn" title="Zoom in (Ctrl +)" aria-label="Zoom in">+</button>
-        <button type="button" id="zFit" title="Fit to window (Ctrl 0)">Fit</button>
-      </div>
+      <div class="toolbar" id="toolbar" role="toolbar" aria-label="Preview"></div>
       <div class="busy" id="busy" hidden><span class="spin" aria-hidden="true"></span>Converting</div>
     </div>
 
@@ -84,6 +76,21 @@
 
   <aside class="out panel" id="out" aria-label="PDF settings">
     <div class="out-scroll">
+      <section class="presets">
+        <h2>Preset</h2>
+        <div class="preset-row">
+          <select id="preset" aria-label="Preset"></select>
+          <button class="icon-btn" id="presetSave" type="button" title="Save these settings as a preset" data-icon="save"><span class="sr">Save as preset</span></button>
+          <button class="icon-btn" id="presetDelete" type="button" title="Delete this preset" data-icon="trash" disabled><span class="sr">Delete preset</span></button>
+        </div>
+        <div class="preset-form" id="presetForm" hidden>
+          <input id="presetName" maxlength="60" placeholder="Preset name" aria-label="Preset name">
+          <button class="btn small" id="presetOk" type="button">Save</button>
+          <button class="btn ghost small" id="presetCancel" type="button">Cancel</button>
+        </div>
+        <p class="field-err" id="presetErr" role="alert"></p>
+      </section>
+
       <section>
         <h2>Sheet</h2>
         <label class="field"><span>Paper</span>
@@ -138,8 +145,21 @@
       <section class="layers-sec">
         <div class="sec-head"><h2>Layers</h2><span class="count" id="layerCount"></span></div>
         <input type="search" id="layerFilter" placeholder="Filter layers" aria-label="Filter layers" hidden>
-        <div class="layer-tools"><button type="button" class="link" id="lAll">Show all</button><button type="button" class="link" id="lNone">Hide all</button></div>
+        <div class="layer-tools"><button type="button" class="link" id="lAll">Show all</button><button type="button" class="link" id="lNone">Hide all</button><button type="button" class="link" id="lReset" hidden>Reset colours and weights</button></div>
         <ul class="layers" id="layers"></ul>
+      </section>
+
+      <section>
+        <h2>Title block</h2>
+        <label class="check tb-toggle"><input type="checkbox" id="tbOn"> Add a title block to each sheet</label>
+        <div class="tb-fields">
+          <label class="field"><span>Project</span><input id="tbProject" maxlength="80" autocomplete="off"></label>
+          <label class="field"><span>Drawn by</span><input id="tbDrawnBy" maxlength="80" autocomplete="off"></label>
+          <label class="field"><span>Date</span><input id="tbDate" type="date"></label>
+          <label class="field"><span>Stamp</span><input id="tbStamp" list="stamps" maxlength="30" autocomplete="off" placeholder="None"></label>
+          <datalist id="stamps"><option value="Preliminary"></option><option value="For approval"></option><option value="Approved"></option><option value="For construction"></option><option value="Not to scale"></option></datalist>
+          <p class="tb-note">Drawing name, scale and sheet number fill in automatically. An empty date uses today’s.</p>
+        </div>
       </section>
 
       <section>
@@ -150,6 +170,7 @@
     </div>
 
     <div class="out-actions">
+      <div class="progress" id="progress" hidden><div class="track"><i id="progressFill"></i></div><span id="progressText"></span></div>
       <div class="row">
         <button class="btn primary" id="bOpenPdf" type="button" title="Ctrl Enter">Open PDF</button>
         <button class="btn" id="bSave" type="button" title="Ctrl S">Save PDF…</button>
@@ -178,6 +199,19 @@
 </div>
 <div class="scrim" id="scrim" hidden></div>
 
+<script src="../models/settings.js"></script>
+<script src="../models/presets.js"></script>
+<script src="../models/layer-overrides.js"></script>
+<script src="state.js"></script>
+<script src="icons.js"></script>
+<script src="canvas/viewport.js"></script>
+<script src="canvas/rulers.js"></script>
+<script src="canvas/toolbar.js"></script>
+<script src="panels/queue.js"></script>
+<script src="panels/sheet.js"></script>
+<script src="panels/layers.js"></script>
+<script src="panels/title-block.js"></script>
+<script src="panels/presets.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

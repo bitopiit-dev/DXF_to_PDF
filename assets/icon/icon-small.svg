@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- simplified for 16-48 px: same mat, page, curve and badge, no fine detail -->
+  <rect x="32" y="32" width="960" height="960" rx="190" fill="#17704f"/>
+  <path d="M232 150H660L792 282V874H232Z" fill="#ffffff"/>
+  <path d="M660 150V282H792Z" fill="#cdd7df"/>
+  <path d="M330 720C410 470 560 520 600 330" fill="none" stroke="#ff7a1a" stroke-width="96" stroke-linecap="round"/>
+  <rect x="560" y="650" width="400" height="300" rx="70" fill="#0e2236"/>
+  <rect x="630" y="860" width="260" height="36" rx="18" fill="#ff7a1a"/>
+</svg>

@@ -30,9 +30,11 @@ Full list and current limits: [docs/supported-dxf.md](docs/supported-dxf.md).
 1. Drop `.dxf` files or a folder on the window, choose **Open drawings**, or press Ctrl+O. With a single drawing, the PDF opens automatically; turn this off on the start screen.
 2. Pick the paper (A4 to A0, Letter, Legal, Tabloid), orientation, margin, drawing colours or all-black lines, and layers. The preview and PDF update together.
 3. For a scale you can measure, switch **Scale** to **Exact scale** and type it, for example `1:100` or `2:1`. The app reads the drawing's units from the file; set them yourself if the file does not say. A drawing larger than the paper is split across overlapping sheets labelled A1, A2, B1…, each naming its neighbours, with a 50 mm scale bar to check the printer.
-4. **Save PDF…** writes it next to the DXF. With several drawings open, **Save all** writes one PDF per drawing and **Combine into one** makes a single PDF.
+4. Optional: tick **Add a title block** for an engineering title block on every sheet (project, drawn by, date, stamp; drawing name, scale and sheet number fill in automatically). In **Layers**, use the eye to hide a layer, the swatch to change its colour in the PDF, and the `1×` menu to make its lines thinner or thicker.
+5. Pick a **Preset** such as *A4 fit, black and white* or *A3 1:50 engineering*, or save your own with the disk button.
+6. **Save PDF…** writes it next to the DXF. With several drawings open, **Save all** writes one PDF per drawing and **Combine into one** makes a single PDF.
 
-In the preview, drag to move, scroll or pinch to zoom, double-click to fit. Ctrl+1 shows the sheet at about real size. The rulers show paper millimetres, and the status bar shows the cursor position in drawing units.
+In the preview, drag to move, scroll or pinch to zoom, double-click to fit. The floating toolbar zooms and switches the grid, rulers and sheet outlines on and off. Ctrl+1 shows the sheet at about real size. The rulers show paper millimetres, and the status bar shows the cursor position in drawing units.
 
 ### Command line
 
@@ -41,6 +43,7 @@ The same app converts without opening a window:
 ```bash
 "DXF to PDF" --convert plans/ --out pdf/ --scale 1:100 --size A1
 "DXF to PDF" --convert a.dxf b.dxf --combine all.pdf --ink black
+"DXF to PDF" --convert plans/ --preset "A3 1:50 engineering" --project "Bitopi Tower" --drawn-by "K/Arifur Rahman"
 "DXF to PDF" --help
 ```
 
@@ -72,4 +75,4 @@ Copyright © 2026 K/Arifur Rahman. All rights reserved. See [LICENSE](LICENSE).
 
 ## Credits
 
-Barlow and Barlow Condensed fonts by Jeremy Tribby, SIL Open Font License (`src/renderer/fonts/OFL.txt`). Noto Sans and Noto Sans Bengali by the Noto Project Authors, SIL Open Font License (`src/core/fonts/OFL-Noto.txt`). Text shaping by [HarfBuzz](https://github.com/harfbuzz/harfbuzzjs) (MIT). PDF output by [jsPDF](https://github.com/parallax/jsPDF) (MIT).
+Barlow and Barlow Condensed fonts by Jeremy Tribby, SIL Open Font License (`src/ui/fonts/OFL.txt`). Noto Sans and Noto Sans Bengali by the Noto Project Authors, SIL Open Font License (`src/core/text/fonts/OFL-Noto.txt`). Text shaping by [HarfBuzz](https://github.com/harfbuzz/harfbuzzjs) (MIT). PDF output by [jsPDF](https://github.com/parallax/jsPDF) (MIT).
