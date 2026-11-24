@@ -70,8 +70,30 @@ const DXF = (() => {
       if (section === 'ENTITIES') { i = collect(toks, i, entities); continue; }
       i++;
     }
-    const lts = parseFloat(header.$LTSCALE); 
-    return { layers, blocks, entities, ltypes, ltscale: isFinite(lts) && lts > 0 ? lts : 1 };
+    const lts = parseFloat(header.$LTSCALE);
+    const iu = parseInt(header.$INSUNITS, 10);
+    return { layers, blocks, entities, ltypes, ltscale: isFinite(lts) && lts > 0 ? lts : 1, insunits: isFinite(iu) ? iu : 0 };
+  }
+
+  // $INSUNITS code -> millimetres per drawing unit (0 = unitless, treated as mm)
+  const UNIT_MM = { 1: 25.4, 2: 304.8, 3: 1609344, 4: 1, 5: 10, 6: 1000, 7: 1e6, 8: 25.4e-6, 9: 0.0254, 10: 914.4, 13: 1e-3, 14: 100, 15: 10000 };
+  const UNITS = { mm: 1, cm: 10, m: 1000, in: 25.4, ft: 304.8 };
+  function unitMM(dxf, override) {
+    if (override && UNITS[override]) return UNITS[override];
+    return UNIT_MM[dxf.insunits] || 1;
+  }
+  function unitName(dxf) {
+    const mm = UNIT_MM[dxf.insunits];
+    const hit = Object.entries(UNITS).find(([, v]) => v === mm);
+    return hit ? hit[0] : null;
+  }
+
+  // bytes -> text: UTF-8 when valid, otherwise the Windows ANSI code page most CAD programs write
+  function decode(buf) {
+    const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    const text = new TextDecoder('utf-8').decode(u8);
+    if (!text.includes('\uFFFD')) return text;
+    try { return new TextDecoder('windows-1252').decode(u8); } catch (e) { return text; }
   }
 
   /* ---------- colors ---------- */
@@ -188,8 +210,15 @@ const DXF = (() => {
   }
 
   /* ---------- flatten to world primitives ---------- */
-  let MEASURE = s => s.length * 0.6; // em-width of a string; replaced by real font metrics
+  let MEASURE = s => s.length * 0.6; // em-width of a Latin string in Helvetica; replaced by real font metrics
   function setMeasure(f) { MEASURE = f; }
+
+  // Text outside Latin-1 (Bangla, Greek, Cyrillic, symbols…) cannot use the PDF's built-in Helvetica.
+  // A shaper turns it into glyph outlines: shape(s) -> { adv, glyphs: [{ x, y, cmds }] } in em units, y up.
+  let SHAPER = null;
+  function setShaper(f) { SHAPER = f; }
+  const needsShaping = s => /[^\x20-\x7E\xA0-\xFF]/.test(s);
+  const emWidth = s => (SHAPER && needsShaping(s) ? SHAPER.shape(s).adv : MEASURE(s));
 
   function flatten(dxf, hidden, tol) {
     TOL = tol || 0;
@@ -247,7 +276,7 @@ const DXF = (() => {
             const words = ln.split(' '); let cur = '';
             for (const w of words) {
               const t = cur ? cur + ' ' + w : w;
-              if (cur && MEASURE(t) * h / 0.72 * (wf || 1) > wrapW * 1.001) { out.push(cur); cur = w; } else cur = t;
+              if (cur && emWidth(t) * h / 0.72 * (wf || 1) > wrapW * 1.001) { out.push(cur); cur = w; } else cur = t;
             }
             out.push(cur);
           }
@@ -262,8 +291,31 @@ const DXF = (() => {
         const ux = Math.cos(r), uy = Math.sin(r), vx = -uy, vy = ux;
         lines.forEach((ln, i) => {
           if (!ln.trim()) return;
-          const o = off - i * gap;
-          prims.push({ k: 't', s: ln, x: px + vx * o, y: py + vy * o, h: H, r, ha, c: col, layer, wf: wf || 1 });
+          const o = off - i * gap, bx = px + vx * o, by = py + vy * o, w1 = wf || 1;
+          if (SHAPER && needsShaping(ln)) {
+            // outline the shaped glyphs so Bangla conjuncts and vowel signs print exactly as in CAD
+            const sh = SHAPER.shape(ln), em = H / 0.72, x0 = -sh.adv * em * w1 * ha / 2;
+            const W = (gx, gy) => { const u = x0 + gx * em * w1, v = gy * em; return [bx + ux * u + vx * v, by + uy * u + vy * v]; };
+            const cmds = [];
+            for (const g of sh.glyphs) {
+              let cur = null, start = null;
+              for (const c of g.cmds) {
+                const v = c.values;
+                if (c.type === 'M') { cur = start = W(g.x + v[0], g.y + v[1]); cmds.push(['M', ...cur]); }
+                else if (c.type === 'L') { cur = W(g.x + v[0], g.y + v[1]); cmds.push(['L', ...cur]); }
+                else if (c.type === 'Q') {
+                  const q = W(g.x + v[0], g.y + v[1]), e = W(g.x + v[2], g.y + v[3]);
+                  cmds.push(['C', cur[0] + 2 / 3 * (q[0] - cur[0]), cur[1] + 2 / 3 * (q[1] - cur[1]), e[0] + 2 / 3 * (q[0] - e[0]), e[1] + 2 / 3 * (q[1] - e[1]), ...e]); cur = e;
+                } else if (c.type === 'C') {
+                  const a = W(g.x + v[0], g.y + v[1]), b = W(g.x + v[2], g.y + v[3]), e = W(g.x + v[4], g.y + v[5]);
+                  cmds.push(['C', ...a, ...b, ...e]); cur = e;
+                } else if (c.type === 'Z') { cmds.push(['Z']); cur = start; }
+              }
+            }
+            if (cmds.length) prims.push({ k: 'o', cmds, c: col, layer, s: ln });
+            return;
+          }
+          prims.push({ k: 't', s: ln, x: bx, y: by, h: H, r, ha, c: col, layer, wf: w1 });
         });
       };
       used[e.type] = (used[e.type] || 0) + 1;
@@ -468,29 +520,62 @@ const DXF = (() => {
       if (p.k === 'p') p.pts.forEach(q => add(q[0], q[1]));
       else if (p.k === 'f') p.loops.forEach(l => l.forEach(q => add(q[0], q[1])));
       else if (p.k === 'h') p.clip.forEach(l => l.forEach(q => add(q[0], q[1])));
-      else { const w = MEASURE(p.s) * p.h / 0.72 * p.wf, ux = Math.cos(p.r), uy = Math.sin(p.r); const x0 = p.x - ux * w * p.ha / 2, y0 = p.y - uy * w * p.ha / 2; add(x0, y0); add(x0 + ux * w, y0 + uy * w); add(x0 - uy * p.h, y0 + ux * p.h); }
+      else if (p.k === 'o') p.cmds.forEach(c => { for (let i = 1; i < c.length; i += 2) add(c[i], c[i + 1]); });
+      else { const w = emWidth(p.s) * p.h / 0.72 * p.wf, ux = Math.cos(p.r), uy = Math.sin(p.r); const x0 = p.x - ux * w * p.ha / 2, y0 = p.y - uy * w * p.ha / 2; add(x0, y0); add(x0 + ux * w, y0 + uy * w); add(x0 - uy * p.h, y0 + ux * p.h); }
     }
     if (a === Infinity) return null;
     return { minx: a, miny: b, maxx: c, maxy: d };
   }
 
-  const SIZES = { A4: [210, 297], A3: [297, 420], A2: [420, 594], A1: [594, 841], A0: [841, 1189], Letter: [215.9, 279.4], Tabloid: [279.4, 431.8] };
+  const SIZES = { A4: [210, 297], A3: [297, 420], A2: [420, 594], A1: [594, 841], A0: [841, 1189], Letter: [215.9, 279.4], Legal: [215.9, 355.6], Tabloid: [279.4, 431.8] };
+  const rowName = r => { let n = ''; r++; while (r > 0) { const m = (r - 1) % 26; n = String.fromCharCode(65 + m) + n; r = Math.floor((r - 1) / 26); } return n; };
 
+  // Page plan. opts: size, orient (auto|landscape|portrait), ink (color|black), margin (mm),
+  // scale ('fit' or N for 1:N), unitMM (mm per drawing unit), overlap (mm between tiles).
+  // At a fixed scale a drawing larger than the page is split into tiles that overlap by `overlap` mm.
   function plan(prims, ext, opts) {
-    let [pw, ph] = SIZES[opts.size] || SIZES.A4;
+    const base = SIZES[opts.size] || SIZES.A4;
     const bw = (ext.maxx - ext.minx) || 1, bh = (ext.maxy - ext.miny) || 1;
-    const land = opts.orient === 'landscape' || (opts.orient === 'auto' && bw > bh);
-    if (land) [pw, ph] = [ph, pw];
-    const mg = opts.margin != null ? opts.margin : 10;
-    const s = Math.min((pw - 2 * mg) / bw, (ph - 2 * mg) / bh);
-    const ox = mg + ((pw - 2 * mg) - bw * s) / 2, oy = mg + ((ph - 2 * mg) - bh * s) / 2;
-    const X = x => ox + (x - ext.minx) * s, Y = y => ph - (oy + (y - ext.miny) * s);
+    const mg = opts.margin != null ? Math.max(0, opts.margin) : 10;
+    const fixed = typeof opts.scale === 'number' && isFinite(opts.scale) && opts.scale > 0;
+    const unit = opts.unitMM > 0 ? opts.unitMM : 1;
+    function layout(land) {
+      const pw = land ? base[1] : base[0], ph = land ? base[0] : base[1], uw = pw - 2 * mg, uh = ph - 2 * mg;
+      if (!fixed) { const s = Math.min(uw / bw, uh / bh); return { pw, ph, uw, uh, s, cols: 1, rows: 1, W: bw * s, H: bh * s, ov: 0 }; }
+      const s = unit / opts.scale, W = bw * s, H = bh * s;
+      const ov = Math.max(0, Math.min(opts.overlap != null ? opts.overlap : 10, uw / 3, uh / 3));
+      const cols = W <= uw + 1e-6 ? 1 : Math.ceil((W - ov) / (uw - ov));
+      const rows = H <= uh + 1e-6 ? 1 : Math.ceil((H - ov) / (uh - ov));
+      return { pw, ph, uw, uh, s, cols, rows, W, H, ov };
+    }
+    let L;
+    if (opts.orient === 'landscape') L = layout(true);
+    else if (opts.orient === 'portrait') L = layout(false);
+    else {
+      const a = layout(true), b = layout(false), na = a.cols * a.rows, nb = b.cols * b.rows;
+      L = !fixed || na === nb ? (bw > bh ? a : b) : (na < nb ? a : b); // fewest sheets, then follow the drawing's shape
+    }
+    const { pw, ph, uw, uh, s, cols, rows, W, H, ov } = L;
+    const stepX = uw - ov, stepY = uh - ov;
+    const coverW = cols === 1 ? uw : cols * stepX + ov, coverH = rows === 1 ? uh : rows * stepY + ov;
+    const ox = mg + (coverW - W) / 2, oy = mg + (coverH - H) / 2;
+    const X = x => ox + (x - ext.minx) * s, Y = y => oy + (ext.maxy - y) * s;
     const ink = c => opts.ink === 'black' ? '#000000' : c;
-    return { pw, ph, s, X, Y, ink, prims };
+    const pages = [], sheetCount = cols * rows;
+    if (sheetCount <= 10000) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      pages.push({ dx: c * stepX, dy: r * stepY, row: r, col: c, label: cols * rows > 1 ? rowName(r) + (c + 1) : '' });
+    }
+    return {
+      pw, ph, s, mg, uw, uh, ov, X, Y, ink, prims, pages, sheetCount, cols, rows, fixed, fitN: unit / Math.min(uw / bw, uh / bh),
+      scaleN: fixed ? opts.scale : unit / s, unitMM: unit,
+      posterW: coverW + 2 * mg, posterH: coverH + 2 * mg, drawW: W, drawH: H,
+      ox, oy, ext,
+    };
   }
 
   const f2 = n => (Math.round(n * 1000) / 1000).toString();
   const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmtScale = n => n >= 1 ? '1:' + (n >= 100 ? Math.round(n) : +n.toPrecision(3)) : +(1 / n).toPrecision(3) + ':1';
 
   // DXF dash pattern (drawing units, +dash -gap 0 dot) -> [on, off, ...] in page mm
   function dashArr(p, s) {
@@ -509,17 +594,25 @@ const DXF = (() => {
   }
 
   function groups(P) {
+    if (P._groups) return P._groups;
     const G = new Map();
     for (const p of P.prims) if (p.k === 'p') {
       const c = P.ink(p.c), d = dashArr(p.dash, P.s), key = c + '|' + p.lw + '|' + (d ? d.join(',') : '');
       if (!G.has(key)) G.set(key, { c, lw: p.lw, d, items: [] });
       G.get(key).items.push(p);
     }
-    return [...G.values()];
+    return (P._groups = [...G.values()]);
+  }
+  function outlineGroups(P) {
+    const G = new Map();
+    for (const p of P.prims) if (p.k === 'o') { const c = P.ink(p.c); if (!G.has(c)) G.set(c, []); G.get(c).push(p); }
+    return G;
   }
 
+  // One SVG of the whole output. A tiled plan shows every sheet's printable area as an outlined, labelled tile.
   function toSVG(P) {
-    let o = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${f2(P.pw)} ${f2(P.ph)}" width="${f2(P.pw)}mm" height="${f2(P.ph)}mm"><rect width="100%" height="100%" fill="#fff"/>`;
+    const VW = P.posterW, VH = P.posterH;
+    let o = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${f2(VW)} ${f2(VH)}" width="${f2(VW)}mm" height="${f2(VH)}mm"><rect width="100%" height="100%" fill="#fff"/>`;
     const pt = q => f2(P.X(q[0])) + ' ' + f2(P.Y(q[1]));
     let cid = 0;
     for (const p of P.prims) {
@@ -535,22 +628,42 @@ const DXF = (() => {
       const d = g.items.map(p => 'M' + p.pts.map(pt).join('L') + (p.closed ? 'Z' : '')).join('');
       o += `<path d="${d}" stroke="${g.c}" stroke-width="${g.lw}"${g.d ? ' stroke-linecap="butt"' : ''}${g.d ? ` stroke-dasharray="${g.d.join(' ')}"` : ''}/>`;
     }
-    o += '</g><g font-family="Helvetica, Arial, sans-serif">';
+    o += '</g>';
+    for (const [c, items] of outlineGroups(P)) {
+      const d = items.map(p => p.cmds.map(k => k[0] + (k.length > 1 ? k.slice(1).map((v, i) => f2(i % 2 ? P.Y(v) : P.X(v))).join(' ') : '')).join('')).join('');
+      o += `<path d="${d}" fill="${c}"/>`;
+    }
+    o += '<g font-family="Helvetica, Arial, sans-serif">';
     for (const t of P.prims) if (t.k === 't') {
       const x = f2(P.X(t.x)), y = f2(P.Y(t.y)), deg = f2(-t.r / D2R);
       o += `<text transform="translate(${x} ${y})${deg !== '0' ? ` rotate(${deg})` : ''}${t.wf !== 1 ? ` scale(${f2(t.wf)} 1)` : ''}" font-size="${f2(t.h * P.s / 0.72)}" fill="${P.ink(t.c)}" text-anchor="${['start', 'middle', 'end'][t.ha] || 'start'}" xml:space="preserve">${esc(t.s)}</text>`;
     }
-    return o + '</g></svg>';
+    o += '</g>';
+    if (P.pages.length > 1) {
+      o += '<g class="tiles" fill="none">';
+      for (const pg of P.pages) {
+        const x = pg.dx + P.mg, y = pg.dy + P.mg;
+        const fs = Math.min(P.uw, P.uh) * 0.16;
+        o += `<rect x="${f2(x)}" y="${f2(y)}" width="${f2(P.uw)}" height="${f2(P.uh)}"/><text x="${f2(x + fs * 0.35)}" y="${f2(y + fs * 1.05)}" font-size="${f2(fs)}">${pg.label}</text>`;
+      }
+      o += '</g>';
+    }
+    return o + '</svg>';
   }
 
   const hexRGB = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   const pdfSafe = s => s.replace(/[^\x20-\x7E\xA0-\xFF]/g, '?');
 
-  function toPDF(P, jsPDF, title) {
-    const doc = new jsPDF({ orientation: P.pw > P.ph ? 'landscape' : 'portrait', unit: 'mm', format: [Math.min(P.pw, P.ph), Math.max(P.pw, P.ph)], compress: true, floatPrecision: 4 });
-    doc.setProperties({ title: title || 'Drawing', creator: 'DXF to PDF by K/Arifur Rahman' });
+  function drawPage(doc, P, pg, idx) {
+    const dx = pg.dx, dy = pg.dy, tiled = P.pages.length > 1;
+    const X = x => P.X(x) - dx, Y = y => P.Y(y) - dy;
+    const mv = q => doc.moveTo(X(q[0]), Y(q[1])), ln = q => doc.lineTo(X(q[0]), Y(q[1]));
     doc.setLineCap('round'); doc.setLineJoin('round');
-    const mv = q => doc.moveTo(P.X(q[0]), P.Y(q[1])), ln = q => doc.lineTo(P.X(q[0]), P.Y(q[1]));
+    if (tiled) {
+      doc.saveGraphicsState();
+      doc.moveTo(P.mg, P.mg); doc.lineTo(P.mg + P.uw, P.mg); doc.lineTo(P.mg + P.uw, P.mg + P.uh); doc.lineTo(P.mg, P.mg + P.uh); doc.close();
+      doc.clip(); doc.discardPath();
+    }
     for (const p of P.prims) {
       if (p.k === 'f') {
         doc.setFillColor(...hexRGB(P.ink(p.c)));
@@ -574,17 +687,72 @@ const DXF = (() => {
       for (const p of g.items) { p.pts.forEach((q, i) => i ? ln(q) : mv(q)); if (p.closed) doc.close(); doc.stroke(); }
     }
     doc.setLineDashPattern([], 0);
+    for (const [c, items] of outlineGroups(P)) {
+      doc.setFillColor(...hexRGB(c));
+      for (const p of items) {
+        for (const k of p.cmds) {
+          if (k[0] === 'M') doc.moveTo(X(k[1]), Y(k[2]));
+          else if (k[0] === 'L') doc.lineTo(X(k[1]), Y(k[2]));
+          else if (k[0] === 'C') doc.curveTo(X(k[1]), Y(k[2]), X(k[3]), Y(k[4]), X(k[5]), Y(k[6]));
+          else doc.close();
+        }
+        doc.fill();
+      }
+    }
     doc.setFont('helvetica', 'normal');
     for (const t of P.prims) if (t.k === 't') {
       const pt = (t.h * P.s / 0.72) / 0.352778;
       if (pt < 0.3) continue;
       doc.setFontSize(pt); doc.setTextColor(...hexRGB(P.ink(t.c)));
       const s = pdfSafe(t.s), w = doc.getTextWidth(s) * t.wf;
-      let x = P.X(t.x), y = P.Y(t.y);
+      let x = X(t.x), y = Y(t.y);
       const sh = w * t.ha / 2; x -= Math.cos(t.r) * sh; y += Math.sin(t.r) * sh;
       const o = { angle: t.r / D2R, baseline: 'alphabetic' }; if (t.wf !== 1) o.horizontalScale = t.wf;
       doc.text(s, x, y, o);
     }
+    if (tiled) doc.restoreGraphicsState();
+    if (P.fixed || tiled) sheetMarks(doc, P, pg, idx);
+  }
+
+  // Printing at a true scale: cut line, overlap guides, neighbour labels and a scale bar to check the printer
+  function sheetMarks(doc, P, pg, idx) {
+    const { mg, uw, uh, pw, ph } = P, tiled = P.pages.length > 1, grey = [120, 130, 140];
+    const fs = Math.max(5, Math.min(8, mg * 0.9 / 0.352778 * 0.45));
+    doc.setDrawColor(...grey); doc.setTextColor(...grey); doc.setLineCap('butt'); doc.setFontSize(fs);
+    if (tiled) {
+      doc.setLineWidth(0.15); doc.rect(mg, mg, uw, uh);
+      doc.setLineDashPattern([2, 1.5], 0);
+      if (pg.col < P.cols - 1) doc.line(mg + uw - P.ov, mg, mg + uw - P.ov, mg + uh);
+      if (pg.row < P.rows - 1) doc.line(mg, mg + uh - P.ov, mg + uw, mg + uh - P.ov);
+      doc.setLineDashPattern([], 0);
+      const at = (r, c) => (r >= 0 && c >= 0 && r < P.rows && c < P.cols) ? rowName(r) + (c + 1) : null;
+      const n = { top: at(pg.row - 1, pg.col), bottom: at(pg.row + 1, pg.col), left: at(pg.row, pg.col - 1), right: at(pg.row, pg.col + 1) };
+      const mid = mg / 2 + fs * 0.352778 / 3;
+      if (n.top) doc.text(n.top, pw / 2, mid, { align: 'center' });
+      if (n.bottom) doc.text(n.bottom, pw / 2, ph - mg / 2 + fs * 0.352778 / 3, { align: 'center' });
+      if (n.left) doc.text(n.left, mg / 2, ph / 2, { angle: 90, align: 'center' });
+      if (n.right) doc.text(n.right, pw - mg / 2, ph / 2, { angle: -90, align: 'center' });
+      doc.text(`${pg.label}   sheet ${idx + 1} of ${P.pages.length}   ${fmtScale(P.scaleN)}`, mg, mid);
+    }
+    if (P.fixed && mg >= 5) {
+      const len = Math.min(50, Math.floor((pw - 2 * mg) / 3 / 10) * 10 || 10), y = ph - mg / 2, x0 = pw - mg - len;
+      doc.setLineWidth(0.2); doc.line(x0, y, x0 + len, y);
+      for (let k = 0; k <= len; k += 10) doc.line(x0 + k, y - (k % 50 ? 0.8 : 1.4), x0 + k, y);
+      doc.text(`${len} mm at ${fmtScale(P.scaleN)}`, x0 - 2, y + fs * 0.352778 / 3, { align: 'right' });
+    }
+    doc.setLineCap('round');
+  }
+
+  // Adds every sheet of plan P to `doc` (created on the first sheet when null) and returns it.
+  function toPDF(P, jsPDF, title, doc) {
+    P.pages.forEach((pg, i) => {
+      const fmt = [Math.min(P.pw, P.ph), Math.max(P.pw, P.ph)], orientation = P.pw > P.ph ? 'landscape' : 'portrait';
+      if (!doc) {
+        doc = new jsPDF({ orientation, unit: 'mm', format: fmt, compress: true, floatPrecision: 4 });
+        doc.setProperties({ title: title || 'Drawing', creator: 'DXF to PDF by K/Arifur Rahman' });
+      } else doc.addPage(fmt, orientation);
+      drawPage(doc, P, pg, i);
+    });
     return doc;
   }
 
@@ -597,6 +765,7 @@ const DXF = (() => {
     return { f, ext: extents(f.prims) };
   }
 
-  return { parse, flatten, build, extents, plan, toSVG, toPDF, setMeasure, SIZES };
+  return { layerHex: L => L.tc != null ? intHex(L.tc) : aci(Math.abs(L.color) || 7), fmtScale, parse, decode, flatten, build, extents, plan, toSVG, toPDF, setMeasure, setShaper, needsShaping, unitMM, unitName, SIZES, UNITS };
 })();
-if (typeof module !== 'undefined') module.exports = DXF;
+if (typeof module !== 'undefined' && module.exports) module.exports = DXF;
+else if (typeof globalThis !== 'undefined') globalThis.DXF = DXF;
